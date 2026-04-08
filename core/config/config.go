@@ -19,6 +19,7 @@ var defaultConfig = Config{
 	Libraries:     []string{},
 	OutputDir:     "",
 	ProxyURL:      "",
+	BandizipPath:  "",
 	ActiveLibrary: "",
 }
 
@@ -26,6 +27,7 @@ type Config struct {
 	Libraries     []string `json:"libraries"`
 	OutputDir     string   `json:"output_dir"`
 	ProxyURL      string   `json:"proxy_url"`
+	BandizipPath  string   `json:"bandizip_path"`
 	ActiveLibrary string   `json:"active_library"`
 }
 
@@ -165,4 +167,14 @@ func (m *Manager) SetProxy(proxyURL string) bool {
 
 func (m *Manager) GetProxy() string {
 	return m.config.ProxyURL
+}
+
+func (m *Manager) SetBandizipPath(path string) bool {
+	m.config.BandizipPath = path
+	logger.Debug("Set Bandizip path: %s", path)
+	return m.SaveConfig()
+}
+
+func (m *Manager) GetBandizipPath() string {
+	return m.config.BandizipPath
 }

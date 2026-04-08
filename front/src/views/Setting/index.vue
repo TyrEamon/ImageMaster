@@ -45,6 +45,23 @@
     </div>
 
     <div class="flex flex-col gap-4">
+      <div class="text-xl">解压设置</div>
+      <div class="flex gap-4">
+        <Input
+          v-model="bandizipPath"
+          class="flex-1"
+          placeholder="请输入 bz.exe 路径，留空则自动检测常见安装位置"
+          @blur="saveBandizipPath"
+        />
+      </div>
+      <div class="text-xs leading-6 text-neutral-400">
+        当前解压功能依赖外部 Bandizip 控制台工具。推荐填写类似
+        <span class="select-all text-neutral-200">D:\bandizip\bz.exe</span>
+        的可执行文件路径；如果留空，软件会尝试自动检测常见安装位置。
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
       <div class="text-xl">日志</div>
       <div class="flex flex-col gap-2 text-neutral-300/90">
         <div>目录：<span class="select-all">{{ logInfo?.dir || '-' }}</span></div>
@@ -117,10 +134,12 @@ import { toast } from 'vue-sonner'
 import {
   AddLibrary,
   GetActiveLibrary,
+  GetBandizipPath,
   GetLibraries,
   GetOutputDir,
   GetProxy,
   SetActiveLibrary,
+  SetBandizipPath,
   SetOutputDir,
   SetProxy,
 } from '../../../wailsjs/go/config/API'
@@ -202,6 +221,7 @@ const linkTips: LinkTip[] = [
 ]
 
 const proxyUrl = ref('')
+const bandizipPath = ref('')
 const downloadDir = ref('')
 const libraries = ref<string[]>([])
 const activeLibrary = ref('')
@@ -213,8 +233,15 @@ const saveProxy = debounce((e: Event) => {
   })
 }, 1000)
 
+const saveBandizipPath = debounce((e: Event) => {
+  SetBandizipPath((e.target as HTMLInputElement).value.trim()).then(() => {
+    void refreshConfig()
+  })
+}, 1000)
+
 async function refreshConfig() {
   proxyUrl.value = await GetProxy()
+  bandizipPath.value = await GetBandizipPath()
   downloadDir.value = await GetOutputDir()
   libraries.value = await GetLibraries()
   activeLibrary.value = await GetActiveLibrary()

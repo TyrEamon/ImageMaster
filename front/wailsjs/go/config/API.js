@@ -10,6 +10,10 @@ export function GetActiveLibrary() {
   return window['go']['config']['API']['GetActiveLibrary']();
 }
 
+export function GetBandizipPath() {
+  return window['go']['config']['API']['GetBandizipPath']();
+}
+
 export function GetLibraries() {
   return window['go']['config']['API']['GetLibraries']();
 }
@@ -24,6 +28,10 @@ export function GetProxy() {
 
 export function SetActiveLibrary(arg1) {
   return window['go']['config']['API']['SetActiveLibrary'](arg1);
+}
+
+export function SetBandizipPath(arg1) {
+  return window['go']['config']['API']['SetBandizipPath'](arg1);
 }
 
 export function SetOutputDir() {

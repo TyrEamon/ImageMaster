@@ -5,6 +5,8 @@ export function AddLibrary():Promise<boolean>;
 
 export function GetActiveLibrary():Promise<string>;
 
+export function GetBandizipPath():Promise<string>;
+
 export function GetLibraries():Promise<Array<string>>;
 
 export function GetOutputDir():Promise<string>;
@@ -12,6 +14,8 @@ export function GetOutputDir():Promise<string>;
 export function GetProxy():Promise<string>;
 
 export function SetActiveLibrary(arg1:string):Promise<boolean>;
+
+export function SetBandizipPath(arg1:string):Promise<boolean>;
 
 export function SetOutputDir():Promise<boolean>;
 

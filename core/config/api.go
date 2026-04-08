@@ -40,6 +40,14 @@ func (a *API) SetProxy(proxy string) bool {
 	return a.manager.SetProxy(proxy)
 }
 
+func (a *API) GetBandizipPath() string {
+	return a.manager.GetBandizipPath()
+}
+
+func (a *API) SetBandizipPath(path string) bool {
+	return a.manager.SetBandizipPath(path)
+}
+
 func (a *API) GetLibraries() []string {
 	return a.manager.GetLibraries()
 }

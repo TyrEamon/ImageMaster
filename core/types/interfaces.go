@@ -72,6 +72,8 @@ type ConfigManager interface {
 	SetOutputDir() bool
 	GetProxy() string
 	SetProxy(proxyURL string) bool
+	GetBandizipPath() string
+	SetBandizipPath(path string) bool
 	GetLibraries() []string
 	AddLibrary() bool
 	GetActiveLibrary() string

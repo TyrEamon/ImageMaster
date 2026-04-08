@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log"
 
+	archiveapi "ImageMaster/core/archive"
 	"ImageMaster/core/config"
 	crawlerapi "ImageMaster/core/crawler/api"
 	"ImageMaster/core/history"
@@ -43,6 +44,9 @@ func main() {
 	// 创建图书馆API
 	libraryAPI := library.NewAPI(configAPI)
 
+	// 创建解压管理API
+	extractAPI := archiveapi.NewAPI(configAPI)
+
 	// 创建爬虫API（构造注入历史存储）
 	crawlerAPI := crawlerapi.NewCrawlerAPI(configAPI, historyAPI.GetStore())
 
@@ -66,6 +70,7 @@ func main() {
 			crawlerAPI,
 			historyAPI,
 			configAPI,
+			extractAPI,
 			appLogger.NewAPI(),
 		},
 		LogLevel:                 wlogger.ERROR,
