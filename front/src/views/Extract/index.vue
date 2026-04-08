@@ -182,12 +182,31 @@ import {
   ExtractArchive,
   ExtractPendingArchives,
   ScanArchives,
-  type ArchiveItem,
-  type ScanResult,
 } from '../../../wailsjs/go/archive/API'
 import { LoadActiveLibrary } from '../../../wailsjs/go/library/API'
 
 type StatusFilter = 'all' | 'pending' | 'extracted' | 'failed'
+
+interface ArchiveItem {
+  archivePath: string
+  archiveName: string
+  libraryPath: string
+  targetDir: string
+  status: string
+  reason: string
+  sizeBytes: number
+}
+
+interface ScanResult {
+  roots: string[]
+  activeLibrary: string
+  bandizipPath: string
+  totalCount: number
+  pendingCount: number
+  extractedCount: number
+  failedCount: number
+  items: ArchiveItem[]
+}
 
 const scanResult = ref<ScanResult | null>(null)
 const loading = ref(false)
