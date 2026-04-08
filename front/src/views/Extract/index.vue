@@ -1,6 +1,6 @@
 <template>
-  <div class="flex h-screen flex-col gap-6 p-8 text-white">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+  <div class="flex h-screen flex-col gap-6 overflow-hidden p-8 text-white">
+    <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <div class="max-w-3xl">
         <h1 class="text-2xl font-semibold">解压管理</h1>
         <p class="mt-2 text-sm leading-6 text-neutral-400">
@@ -36,7 +36,7 @@
       <div class="rounded-2xl border border-neutral-700/70 bg-neutral-900/70 p-4">
         <div class="text-xs uppercase tracking-wide text-neutral-500">判定已解压</div>
         <div class="mt-3 text-2xl font-semibold text-emerald-300">{{ extractedCount }}</div>
-        <div class="mt-2 text-xs text-neutral-400">目录下已有子文件夹或图片时会跳过。</div>
+        <div class="mt-2 text-xs text-neutral-400">已有子目录或图片时会自动跳过。</div>
       </div>
 
       <div class="rounded-2xl border border-neutral-700/70 bg-neutral-900/70 p-4">
@@ -49,7 +49,7 @@
     </div>
 
     <div class="rounded-2xl border border-neutral-700/70 bg-neutral-900/60 p-4">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div class="flex flex-wrap gap-2">
           <button
             v-for="option in filterOptions"
@@ -72,7 +72,10 @@
         </div>
       </div>
 
-      <div v-if="scanResult?.roots?.length" class="mt-4 flex flex-col gap-2 text-xs text-neutral-400">
+      <div
+        v-if="scanResult?.roots?.length"
+        class="mt-4 flex flex-col gap-2 text-xs text-neutral-400"
+      >
         <div class="text-neutral-500">扫描路径</div>
         <div
           v-for="root in scanResult.roots"
@@ -88,10 +91,13 @@
       v-if="scanResult && !scanResult.bandizipPath"
       class="rounded-2xl border border-amber-300/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-100"
     >
-      还没检测到可用的 Bandizip 控制台工具。你可以先到 Setting 里填入 `bz.exe` 的本地路径，再回来批量解压。
+      还没检测到可用的 Bandizip 控制台工具。你可以先到 Setting 里填入 `bz.exe`
+      的本地路径，再回来批量解压。
     </div>
 
-    <div class="flex-1 overflow-auto rounded-2xl border border-neutral-700/70 bg-neutral-900/60">
+    <div
+      class="min-h-0 flex-1 overflow-auto rounded-2xl border border-neutral-700/70 bg-neutral-900/60"
+    >
       <div v-if="loading" class="flex h-72 items-center justify-center text-sm text-neutral-400">
         正在扫描压缩包...
       </div>
@@ -110,85 +116,90 @@
         当前筛选条件下没有记录。
       </div>
 
-      <table v-else class="w-full text-left text-xs text-neutral-100">
-        <thead class="sticky top-0 bg-neutral-950/95">
-          <tr class="border-b border-neutral-700">
-            <th class="px-3 py-3">状态</th>
-            <th class="px-3 py-3">压缩包</th>
-            <th class="px-3 py-3">漫画库</th>
-            <th class="px-3 py-3">目标目录</th>
-            <th class="px-3 py-3">大小</th>
-            <th class="px-3 py-3 text-center">操作</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr
-            v-for="item in visibleItems"
-            :key="item.archivePath"
-            class="border-b border-neutral-800/80 transition-colors duration-200 hover:bg-neutral-800/60"
-          >
-            <td class="px-3 py-3 align-top">
-              <div
-                class="inline-flex rounded-full border px-2 py-1 text-[11px]"
-                :class="statusClassMap[item.status] || statusClassMap.failed"
-              >
-                {{ statusLabelMap[item.status] || item.status }}
+      <div v-else class="space-y-4 p-4">
+        <div
+          v-for="item in visibleItems"
+          :key="item.archivePath"
+          class="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 transition-colors duration-200 hover:border-neutral-700"
+        >
+          <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <div
+                  class="inline-flex rounded-full border px-2 py-1 text-[11px]"
+                  :class="statusClassMap[item.status] || statusClassMap.failed"
+                >
+                  {{ statusLabelMap[item.status] || item.status }}
+                </div>
+                <div
+                  class="rounded-full border border-neutral-700 px-2 py-1 text-[11px] text-neutral-300"
+                >
+                  {{ formatSize(item.sizeBytes) }}
+                </div>
+                <div
+                  v-if="item.reason"
+                  class="rounded-full border border-neutral-700 px-2 py-1 text-[11px] text-neutral-400"
+                >
+                  {{ item.reason }}
+                </div>
               </div>
-              <div class="mt-2 text-[11px] text-neutral-500">{{ item.reason }}</div>
-            </td>
 
-            <td class="px-3 py-3 align-top">
-              <div class="font-medium text-neutral-100">{{ item.archiveName }}</div>
-              <div class="mt-1 select-all break-all text-[11px] text-neutral-500">
+              <div class="mt-3 break-words text-base font-semibold text-neutral-100">
+                {{ item.archiveName }}
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 xl:justify-end">
+              <button
+                class="cursor-pointer rounded-xl border border-neutral-700 px-3 py-2 text-[11px] text-neutral-200 transition-colors duration-200 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+                :disabled="extracting"
+                @click="copyPath(item.archivePath)"
+              >
+                复制压缩包路径
+              </button>
+
+              <button
+                class="cursor-pointer rounded-xl border border-neutral-700 px-3 py-2 text-[11px] text-neutral-200 transition-colors duration-200 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+                :disabled="extracting"
+                @click="copyPath(item.targetDir)"
+              >
+                复制目标目录
+              </button>
+
+              <button
+                class="cursor-pointer rounded-xl border border-blue-500/40 px-3 py-2 text-[11px] text-blue-100 transition-colors duration-200 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                :disabled="extracting || item.status !== 'pending' || !scanResult?.bandizipPath"
+                @click="extractSingle(item)"
+              >
+                解压
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4 grid gap-3 xl:grid-cols-3">
+            <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 p-3">
+              <div class="text-[11px] uppercase tracking-wide text-neutral-500">压缩包路径</div>
+              <div class="mt-2 break-all text-xs leading-5 text-neutral-300">
                 {{ item.archivePath }}
               </div>
-            </td>
+            </div>
 
-            <td class="px-3 py-3 align-top">
-              <div class="select-all break-all text-[11px] text-neutral-400">
+            <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 p-3">
+              <div class="text-[11px] uppercase tracking-wide text-neutral-500">漫画库</div>
+              <div class="mt-2 break-all text-xs leading-5 text-neutral-300">
                 {{ item.libraryPath }}
               </div>
-            </td>
+            </div>
 
-            <td class="px-3 py-3 align-top">
-              <div class="select-all break-all text-[11px] text-neutral-400">
+            <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 p-3">
+              <div class="text-[11px] uppercase tracking-wide text-neutral-500">目标目录</div>
+              <div class="mt-2 break-all text-xs leading-5 text-neutral-300">
                 {{ item.targetDir }}
               </div>
-            </td>
-
-            <td class="px-3 py-3 align-top text-neutral-300">{{ formatSize(item.sizeBytes) }}</td>
-
-            <td class="px-3 py-3 align-top">
-              <div class="flex justify-center gap-2">
-                <button
-                  class="cursor-pointer rounded-xl border border-neutral-700 px-3 py-1.5 text-[11px] text-neutral-200 transition-colors duration-200 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
-                  :disabled="extracting"
-                  @click="copyPath(item.archivePath)"
-                >
-                  复制压缩包路径
-                </button>
-
-                <button
-                  class="cursor-pointer rounded-xl border border-neutral-700 px-3 py-1.5 text-[11px] text-neutral-200 transition-colors duration-200 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
-                  :disabled="extracting"
-                  @click="copyPath(item.targetDir)"
-                >
-                  复制目标目录
-                </button>
-
-                <button
-                  class="cursor-pointer rounded-xl border border-blue-500/40 px-3 py-1.5 text-[11px] text-blue-100 transition-colors duration-200 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-40"
-                  :disabled="extracting || item.status !== 'pending' || !scanResult?.bandizipPath"
-                  @click="extractSingle(item)"
-                >
-                  解压
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -197,7 +208,11 @@
 import { Button } from '@/components'
 import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import { ExtractArchive, ExtractPendingArchives, ScanArchives } from '../../../wailsjs/go/archive/API'
+import {
+  ExtractArchive,
+  ExtractPendingArchives,
+  ScanArchives,
+} from '../../../wailsjs/go/archive/API'
 import { LoadActiveLibrary } from '../../../wailsjs/go/library/API'
 
 type StatusFilter = 'all' | 'pending' | 'extracted' | 'failed'
