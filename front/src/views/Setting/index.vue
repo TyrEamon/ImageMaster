@@ -123,6 +123,31 @@
         </div>
       </div>
     </div>
+
+    <div class="flex flex-col gap-4">
+      <div class="text-xl">Version</div>
+      <div class="rounded-2xl border border-neutral-300/20 bg-neutral-900/40 p-4">
+        <div class="flex flex-col gap-2 text-neutral-300/90">
+          <div>Current Version: <span class="select-all">{{ versionInfo?.display || '-' }}</span></div>
+          <div>Commit: <span class="select-all">{{ versionInfo?.commit || '-' }}</span></div>
+          <div>Build Time: <span class="select-all">{{ versionInfo?.buildTime || '-' }}</span></div>
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button
+            class="rounded-2xl border border-neutral-300/50 px-4 py-2"
+            @click="copyText(versionInfo?.display)"
+          >
+            Copy Version
+          </button>
+          <button
+            class="rounded-2xl border border-neutral-300/50 px-4 py-2"
+            @click="copyText(versionInfo ? `${versionInfo.display} | ${versionInfo.commit} | ${versionInfo.buildTime || 'no-build-time'}` : '')"
+          >
+            Copy Build Info
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -145,6 +170,7 @@ import {
 } from '../../../wailsjs/go/config/API'
 import { LoadLibrary } from '../../../wailsjs/go/library/API'
 import { GetLogInfo } from '../../../wailsjs/go/logger/API'
+import { GetVersionInfo } from '../../../wailsjs/go/meta/API'
 
 type LinkTip = {
   name: string
@@ -152,6 +178,14 @@ type LinkTip = {
   pageType: string
   avoid: string
   note: string
+}
+
+type VersionInfo = {
+  version: string
+  display: string
+  commit: string
+  buildTime: string
+  isDevBuild: boolean
 }
 
 const linkTips: LinkTip[] = [
@@ -226,6 +260,7 @@ const downloadDir = ref('')
 const libraries = ref<string[]>([])
 const activeLibrary = ref('')
 const logInfo = ref<any>(null)
+const versionInfo = ref<VersionInfo | null>(null)
 
 const saveProxy = debounce((e: Event) => {
   SetProxy((e.target as HTMLInputElement).value).then(() => {
@@ -250,6 +285,12 @@ async function refreshConfig() {
     logInfo.value = await GetLogInfo()
   } catch {
     logInfo.value = null
+  }
+
+  try {
+    versionInfo.value = (await GetVersionInfo()) as VersionInfo
+  } catch {
+    versionInfo.value = null
   }
 }
 

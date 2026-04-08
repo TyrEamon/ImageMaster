@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen flex-col gap-6 overflow-hidden p-8 text-white">
+  <div class="flex h-screen flex-col gap-6 overflow-y-auto p-8 text-white">
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <div class="max-w-3xl">
         <h1 class="text-2xl font-semibold">解压管理</h1>
@@ -95,9 +95,7 @@
       的本地路径，再回来批量解压。
     </div>
 
-    <div
-      class="min-h-0 flex-1 overflow-auto rounded-2xl border border-neutral-700/70 bg-neutral-900/60"
-    >
+    <div class="min-h-[55vh] shrink-0 rounded-2xl border border-neutral-700/70 bg-neutral-900/60">
       <div v-if="loading" class="flex h-72 items-center justify-center text-sm text-neutral-400">
         正在扫描压缩包...
       </div>

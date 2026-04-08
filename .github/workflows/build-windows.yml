@@ -44,13 +44,38 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.10.1
 
+      - name: Resolve build version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}") {
+            $version = "${{ github.ref_name }}"
+          } else {
+            $shortSha = "${{ github.sha }}".Substring(0, 7)
+            $version = "dev-${{ github.run_number }}-$shortSha"
+          }
+          $version = $version.Trim()
+          if ($version.StartsWith("v")) {
+            $version = $version.Substring(1)
+          }
+          "app_version=$version" >> $env:GITHUB_OUTPUT
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+          "BUILD_COMMIT=${{ github.sha }}" >> $env:GITHUB_ENV
+          "BUILD_TIME=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK')" >> $env:GITHUB_ENV
+
       - name: Build Windows executable
-        run: wails build -clean -platform windows/amd64 -webview2 download
+        shell: pwsh
+        run: |
+          $ldflags = "-X main.AppVersion=$env:APP_VERSION -X main.BuildCommit=$env:BUILD_COMMIT -X main.BuildTime=$env:BUILD_TIME"
+          wails build -clean -platform windows/amd64 -webview2 download -ldflags "$ldflags"
+          if (Test-Path "build/bin/ImageMaster.exe") {
+            Rename-Item -Path "build/bin/ImageMaster.exe" -NewName "ImageMaster-$env:APP_VERSION.exe"
+          }
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: ImageMaster-windows-amd64
+          name: ImageMaster-windows-amd64-${{ steps.version.outputs.app_version }}
           path: build/bin/**
           if-no-files-found: error
 

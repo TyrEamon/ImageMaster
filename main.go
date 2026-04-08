@@ -11,6 +11,7 @@ import (
 	"ImageMaster/core/history"
 	"ImageMaster/core/library"
 	appLogger "ImageMaster/core/logger"
+	"ImageMaster/core/meta"
 
 	"github.com/wailsapp/wails/v2"
 	wlogger "github.com/wailsapp/wails/v2/pkg/logger"
@@ -46,6 +47,7 @@ func main() {
 
 	// 创建解压管理API
 	extractAPI := archiveapi.NewAPI(configAPI)
+	metaAPI := meta.NewAPI(AppVersion, BuildCommit, BuildTime)
 
 	// 创建爬虫API（构造注入历史存储）
 	crawlerAPI := crawlerapi.NewCrawlerAPI(configAPI, historyAPI.GetStore())
@@ -71,6 +73,7 @@ func main() {
 			historyAPI,
 			configAPI,
 			extractAPI,
+			metaAPI,
 			appLogger.NewAPI(),
 		},
 		LogLevel:                 wlogger.ERROR,
