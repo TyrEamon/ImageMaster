@@ -12,38 +12,25 @@ const extraVariantMap = new Map<string, string>([
   ['毎', '每'],
   ['気', '气'],
   ['処', '处'],
-  ['絵', '绘'],
-  ['広', '广'],
-  ['沢', '泽'],
-  ['辺', '边'],
-  ['関', '关'],
-  ['黒', '黑'],
-  ['桜', '樱'],
-  ['薬', '药'],
-  ['読', '读'],
-  ['楽', '乐'],
-  ['戦', '战'],
-  ['観', '观'],
-  ['雑', '杂'],
-  ['転', '转'],
-  ['伝', '传'],
-  ['覚', '觉'],
-  ['単', '单'],
   ['隠', '隐'],
-  ['営', '营'],
-  ['悪', '恶'],
-  ['県', '县'],
-  ['実', '实'],
-  ['験', '验'],
-  ['剤', '剂'],
-  ['図', '图'],
-  ['塩', '盐'],
+  ['絵', '绘'],
+  ['綺', '绮'],
+  ['髪', '发'],
   ['艶', '艳'],
-  ['衛', '卫'],
-  ['釣', '钓'],
-  ['瀬', '濑'],
-  ['亀', '龟'],
-  ['円', '圆'],
+  ['雙', '双'],
+  ['樂', '乐'],
+  ['櫻', '樱'],
+  ['戀', '恋'],
+  ['聲', '声'],
+  ['氣', '气'],
+  ['裡', '里'],
+  ['麼', '么'],
+  ['樣', '样'],
+  ['這', '这'],
+  ['為', '为'],
+  ['與', '与'],
+  ['後', '后'],
+  ['臺', '台'],
 ])
 
 const extraVariantPattern =
@@ -67,6 +54,38 @@ function applyExtraVariants(input: string) {
   return input.replace(extraVariantPattern, (char) => extraVariantMap.get(char) ?? char)
 }
 
+function normalizeSeparators(input: string) {
+  return input
+    .replace(/[\[\]【】()（）「」『』〔〕〈〉《》]/g, ' ')
+    .replace(/[~!@#$%^&*+=:;"'`?,，。；：、|\\/]+/g, ' ')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function stripBracketSegments(input: string) {
+  return input
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/【[^】]*】/g, ' ')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/（[^）]*）/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function stripConventionTokens(input: string) {
+  return input
+    .replace(/\bc\d{2,4}\b/gi, ' ')
+    .replace(/\b(?:vol|episode|chapter|part|pixiv|fanbox|dlsite)\b/gi, ' ')
+    .replace(/\d{5,}/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function compactNormalizedText(input: string) {
+  return normalizeSearchText(input).replace(/\s+/g, '')
+}
+
 export function normalizeSearchText(input: string) {
   if (!input) {
     return ''
@@ -80,11 +99,7 @@ export function normalizeSearchText(input: string) {
 
   normalized = applyExtraVariants(normalized)
 
-  return normalized
-    .replace(/[\[\]【】()（）「」『』〈〉《》〔〕［］｛｝{}]/g, ' ')
-    .replace(/[~!@#$%^&*+=:;"'`?,，。；：、|\\/]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return normalizeSeparators(normalized)
 }
 
 export function splitSearchKeywords(input: string) {
@@ -93,5 +108,22 @@ export function splitSearchKeywords(input: string) {
 }
 
 export function buildMangaSearchIndex(name: string, path: string) {
-  return normalizeSearchText(`${name} ${path}`)
+  const normalizedPath = path.replace(/[\\/]/g, ' ')
+  const strippedTitle = stripBracketSegments(name)
+  const cleanedTitle = stripConventionTokens(strippedTitle)
+
+  const variants = new Set<string>([
+    normalizeSearchText(name),
+    normalizeSearchText(normalizedPath),
+    normalizeSearchText(`${name} ${normalizedPath}`),
+    normalizeSearchText(strippedTitle),
+    normalizeSearchText(cleanedTitle),
+    compactNormalizedText(name),
+    compactNormalizedText(strippedTitle),
+    compactNormalizedText(cleanedTitle),
+  ])
+
+  return Array.from(variants)
+    .filter(Boolean)
+    .join(' ')
 }

@@ -1,160 +1,166 @@
-import type { Ref } from "vue";
-import { ProgressService } from ".";
-import type { useMangaStore } from "../stores";
-import type { MangaService } from "./mangaService";
+import type { Ref } from 'vue'
+import { ProgressService } from '.'
+import type { useMangaStore } from '../stores'
 
 export class ScrollService {
-    private scrollContainer: Ref<HTMLElement | null, HTMLElement | null>
-    private mangaStore: ReturnType<typeof useMangaStore>;
-    private saveTimeout: number | null = null;
-    private smoothScroller: SmoothScroller;
+  private scrollContainer: Ref<HTMLElement | null, HTMLElement | null>
+  private mangaStore: ReturnType<typeof useMangaStore>
+  private saveTimeout: number | null = null
+  private smoothScroller: SmoothScroller
 
-    constructor(scrollContainer: Ref<HTMLElement | null, HTMLElement | null>, mangaStore: ReturnType<typeof useMangaStore>) {
-        this.scrollContainer = scrollContainer;
-        this.mangaStore = mangaStore;
-        this.smoothScroller = new SmoothScroller(this.scrollContainer);
+  constructor(
+    scrollContainer: Ref<HTMLElement | null, HTMLElement | null>,
+    mangaStore: ReturnType<typeof useMangaStore>,
+  ) {
+    this.scrollContainer = scrollContainer
+    this.mangaStore = mangaStore
+    this.smoothScroller = new SmoothScroller(this.scrollContainer)
+  }
+
+  registerEvent = () => {
+    window.addEventListener('keydown', this.handleKeyDown)
+    window.addEventListener('keyup', this.handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', this.handleKeyDown)
+      window.removeEventListener('keyup', this.handleKeyUp)
+    }
+  }
+
+  handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'j') {
+      this.smoothScroller.scrollDown()
+    } else if (event.key === 'k') {
+      this.smoothScroller.scrollUp()
+    }
+  }
+
+  handleKeyUp = (event: KeyboardEvent) => {
+    if (event.key === 'j' || event.key === 'k') {
+      this.smoothScroller.stopScroll()
+    }
+  }
+
+  restoreScrollPosition() {
+    const progress = ProgressService.getProgress(this.mangaStore.mangaPath)
+    if (!progress || progress.scrollPosition <= 0) {
+      return
     }
 
-    registerEvent = () => {
-        window.addEventListener("keydown", this.handleKeyDown);
-        window.addEventListener("keyup", this.handleKeyUp);
-        return () => {
-            window.removeEventListener("keydown", this.handleKeyDown);
-            window.removeEventListener("keyup", this.handleKeyUp);
-        }
+    setTimeout(() => {
+      this.scrollContainer.value?.scrollTo({
+        top: progress.scrollPosition,
+      })
+    }, 100)
+  }
+
+  debounceSaveProgress() {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout)
     }
 
-    handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === "j") {
-            this.smoothScroller.scrollDown();
-        } else if (event.key === "k") {
-            this.smoothScroller.scrollUp();
-        }
-    }
+    this.saveTimeout = window.setTimeout(() => {
+      const container = this.scrollContainer.value
+      const mangaPath = this.mangaStore.mangaPath
+      const totalImages = this.mangaStore.selectedImages.length
 
-    handleKeyUp = (event: KeyboardEvent) => {
-        if (event.key === "j" || event.key === "k") {
-            this.smoothScroller.stopScroll();
-        }
-    }
+      if (!container || !mangaPath) {
+        return
+      }
 
-    restoreScrollPosition() {
-        console.log('restoreScrollPosition')
+      const scrollPosition = container.scrollTop
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight)
+      const rawProgress = maxScrollTop <= 0 ? (totalImages > 0 ? 1 : 0) : scrollPosition / maxScrollTop
+      const progressPercent = Math.min(1, Math.max(0, rawProgress))
+      const lastReadImage =
+        totalImages <= 0
+          ? 0
+          : Math.min(totalImages, Math.max(1, Math.round(progressPercent * Math.max(totalImages - 1, 0)) + 1))
+      const completed = totalImages > 0 && progressPercent >= 0.98
 
-        const progress = ProgressService.getProgress(this.mangaStore.mangaPath);
-        if (progress && progress.scrollPosition > 0) {
-            // 延迟恢复滚动位置，确保图片已加载
-            setTimeout(() => {
-                if (this.scrollContainer) {
-                    this.scrollContainer.value?.scrollBy({
-                        top: progress.scrollPosition,
-                        // behavior: "smooth"
-                    })
-                    console.log(
-                        `已恢复到上次阅读位置：${progress.scrollPosition}px`,
-                    );
-                }
-            }, 100);
-        }
-    }
-
-    debounceSaveProgress() {
-        if (this.saveTimeout) {
-            clearTimeout(this.saveTimeout);
-        }
-
-        this.saveTimeout = setTimeout(() => {
-            if (this.scrollContainer && this.mangaStore.mangaPath
-                // && !this.isRestoringProgress
-            ) {
-                const scrollPosition = this.scrollContainer.value?.scrollTop;
-                ProgressService.saveProgress(
-                    this.mangaStore.mangaPath,
-                    scrollPosition || 0,
-                    this.mangaStore.selectedImages.length,
-                );
-            }
-        }, 1000); // 1秒防抖
-    }
+      ProgressService.saveProgress(
+        mangaPath,
+        scrollPosition,
+        totalImages,
+        progressPercent,
+        lastReadImage,
+        completed,
+      )
+    }, 1000)
+  }
 }
 
 export class SmoothScroller {
-    private container: Ref<HTMLElement | null, HTMLElement | null>
-    private targetScrollPos: number;
-    private isScrolling: boolean;
-    private scrollDirection: number; // 0: 无滚动, 1: 向下, -1: 向上
-    private scrollAmount: number; // 每次滚动量
-    private scrollDuration: number; // 每次滚动周期(ms)
-    private frameDuration: number;
+  private container: Ref<HTMLElement | null, HTMLElement | null>
+  private targetScrollPos: number
+  private isScrolling: boolean
+  private scrollDirection: number
+  private scrollAmount: number
+  private scrollDuration: number
+  private frameDuration: number
 
-    constructor(container: Ref<HTMLElement | null, HTMLElement | null>, scrollAmount = 64, scrollDuration = 128) {
-        this.container = container;
-        this.targetScrollPos = this.container.value?.scrollTop || 0;
-        this.isScrolling = false;
-        this.scrollDirection = 0;
-        this.scrollAmount = scrollAmount;
-        this.scrollDuration = scrollDuration;
-        this.frameDuration = 16;
+  constructor(
+    container: Ref<HTMLElement | null, HTMLElement | null>,
+    scrollAmount = 64,
+    scrollDuration = 128,
+  ) {
+    this.container = container
+    this.targetScrollPos = this.container.value?.scrollTop || 0
+    this.isScrolling = false
+    this.scrollDirection = 0
+    this.scrollAmount = scrollAmount
+    this.scrollDuration = scrollDuration
+    this.frameDuration = 16
+  }
+
+  easeLinear(t: number) {
+    return t
+  }
+
+  animateScroll = () => {
+    if (this.scrollDirection === 0) {
+      this.isScrolling = false
+      return
     }
 
-    // 缓动函数 (线性)
-    easeLinear(t: number) {
-        return t;
+    const currentPos = this.container.value?.scrollTop || 0
+    const distance = this.targetScrollPos - currentPos
+
+    if (Math.abs(distance) < 0.1) {
+      this.isScrolling = false
+      if (this.container.value) {
+        this.container.value.scrollTop = this.targetScrollPos
+      }
+
+      if (this.scrollDirection !== 0) {
+        this.startScroll(this.scrollDirection)
+      }
+      return
     }
 
-    animateScroll = () => {
-        if (this.scrollDirection === 0) {
-            this.isScrolling = false
-            return
-        }
-        const currentPos = this.container.value?.scrollTop || 0;
-        const distance = this.targetScrollPos - currentPos;
+    const frameCount = this.scrollDuration / this.frameDuration
+    const scrollThisFrame = (this.scrollAmount / frameCount) * this.scrollDirection
 
-        if (Math.abs(distance) < 0.1) {
-            // 滚动完成
-            this.isScrolling = false;
-            if (this.container.value) {
-                this.container.value.scrollTop = this.targetScrollPos;
-            }
-
-            // 如果有待处理的滚动，继续
-            if (this.scrollDirection !== 0) {
-                this.startScroll(this.scrollDirection);
-            }
-            return;
-        }
-
-        // 计算这一帧应该滚动的距离
-        const frameCount = this.scrollDuration / this.frameDuration;
-        const scrollThisFrame = this.scrollAmount / frameCount * this.scrollDirection;
-
-        if (this.container.value) {
-            this.container.value.scrollTop = currentPos + scrollThisFrame;
-        }
-
-        // 继续下一帧
-        requestAnimationFrame(this.animateScroll);
+    if (this.container.value) {
+      this.container.value.scrollTop = currentPos + scrollThisFrame
     }
 
-    /**
-    * 开始滚动
-    * @param {number} direction - 1: 向下, -1: 向上
-    */
-    startScroll = (direction: number) => {
-        this.scrollDirection = direction;
-        this.targetScrollPos = (this.container.value?.scrollTop || 0) + (this.scrollAmount * direction) || 0;
+    requestAnimationFrame(this.animateScroll)
+  }
 
-        if (!this.isScrolling) {
-            this.isScrolling = true;
-            requestAnimationFrame(this.animateScroll);
-        }
+  startScroll = (direction: number) => {
+    this.scrollDirection = direction
+    this.targetScrollPos = (this.container.value?.scrollTop || 0) + this.scrollAmount * direction
+
+    if (!this.isScrolling) {
+      this.isScrolling = true
+      requestAnimationFrame(this.animateScroll)
     }
+  }
 
-    stopScroll = () => {
-        this.scrollDirection = 0;
-    }
+  stopScroll = () => {
+    this.scrollDirection = 0
+  }
 
-    scrollDown = () => this.startScroll(1)
-    scrollUp = () => this.startScroll(-1)
-
+  scrollDown = () => this.startScroll(1)
+  scrollUp = () => this.startScroll(-1)
 }
