@@ -1,5 +1,7 @@
 package config
 
+import "context"
+
 type API struct {
 	manager *Manager
 }
@@ -8,6 +10,10 @@ func NewAPI(appName string) *API {
 	return &API{
 		manager: NewManager(appName),
 	}
+}
+
+func (a *API) SetContext(ctx context.Context) {
+	a.manager.SetContext(ctx)
 }
 
 func (a *API) GetActiveLibrary() string {
