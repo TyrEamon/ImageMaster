@@ -56,6 +56,8 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup: func(ctx context.Context) {
+			configAPI.SetContext(ctx)
+			libraryAPI.SetContext(ctx)
 			libraryAPI.InitializeLibraryManager()
 			crawlerAPI.SetContext(ctx)
 		},
