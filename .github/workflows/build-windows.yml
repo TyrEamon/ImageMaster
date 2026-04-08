@@ -29,13 +29,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: front/pnpm-lock.yaml
+          package-manager-cache: false
 
       - name: Setup pnpm via Corepack
         run: |
           corepack enable
           corepack prepare pnpm@8.15.8 --activate
+          pnpm --version
 
       - name: Install frontend dependencies
         working-directory: front
