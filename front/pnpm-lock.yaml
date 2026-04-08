@@ -11,6 +11,9 @@ dependencies:
   lucide-vue-next:
     specifier: ^0.525.0
     version: 0.525.0(vue@3.5.17)
+  opencc-js:
+    specifier: ^1.0.5
+    version: 1.0.5
   pinia:
     specifier: ^3.0.3
     version: 3.0.3(typescript@5.8.3)(vue@3.5.17)
@@ -2349,6 +2352,10 @@ packages:
       is-inside-container: 1.0.0
       is-wsl: 3.1.0
     dev: true
+
+  /opencc-js@1.0.5:
+    resolution: {integrity: sha512-LD+1SoNnZdlRwtYTjnQdFrSVCAaYpuDqL5CkmOaHOkKoKh7mFxUicLTRVNLU5C+Jmi1vXQ3QL4jWdgSaa4sKjg==}
+    dev: false
 
   /optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
