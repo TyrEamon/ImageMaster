@@ -59,12 +59,38 @@
           <span class="rounded-full border border-neutral-800 px-3 py-1.5">
             显示 {{ visibleMangas.length }} / {{ mangas.length }} 本
           </span>
-          <span class="rounded-full border border-neutral-800 px-3 py-1.5">置顶 {{ pinnedCount }}</span>
-          <span class="rounded-full border border-neutral-800 px-3 py-1.5">收藏 {{ favoriteCount }}</span>
-          <span class="rounded-full border border-neutral-800 px-3 py-1.5">稍后看 {{ readLaterCount }}</span>
-          <span class="rounded-full border border-neutral-800 px-3 py-1.5">
+
+          <button
+            class="cursor-pointer rounded-full border px-3 py-1.5 transition-colors"
+            :class="getQuickFilterClass('pinned')"
+            @click="toggleQuickFilter('pinned')"
+          >
+            置顶 {{ pinnedCount }}
+          </button>
+
+          <button
+            class="cursor-pointer rounded-full border px-3 py-1.5 transition-colors"
+            :class="getQuickFilterClass('favorite')"
+            @click="toggleQuickFilter('favorite')"
+          >
+            收藏 {{ favoriteCount }}
+          </button>
+
+          <button
+            class="cursor-pointer rounded-full border px-3 py-1.5 transition-colors"
+            :class="getQuickFilterClass('read-later')"
+            @click="toggleQuickFilter('read-later')"
+          >
+            稍后看 {{ readLaterCount }}
+          </button>
+
+          <button
+            class="cursor-pointer rounded-full border px-3 py-1.5 transition-colors"
+            :class="getQuickFilterClass('in-progress')"
+            @click="toggleQuickFilter('in-progress')"
+          >
             继续阅读 {{ inProgressCount }}
-          </span>
+          </button>
         </div>
       </div>
     </div>
@@ -164,7 +190,10 @@ const visibleMangas = computed(() => {
   const sorted = [...filtered].sort((left, right) => {
     switch (sortMode.value) {
       case 'recent-read':
-        return (right.progress?.timestamp ?? 0) - (left.progress?.timestamp ?? 0) || compareName(left.manga.name, right.manga.name)
+        return (
+          (right.progress?.timestamp ?? 0) - (left.progress?.timestamp ?? 0) ||
+          compareName(left.manga.name, right.manga.name)
+        )
       case 'images-desc':
         return right.manga.imagesCount - left.manga.imagesCount || compareName(left.manga.name, right.manga.name)
       case 'name-asc':
@@ -216,6 +245,16 @@ function resetControls() {
   searchQuery.value = ''
   sortMode.value = 'smart'
   statusFilter.value = 'all'
+}
+
+function toggleQuickFilter(filter: Exclude<StatusFilter, 'all' | 'completed' | 'unread'>) {
+  statusFilter.value = statusFilter.value === filter ? 'all' : filter
+}
+
+function getQuickFilterClass(filter: Exclude<StatusFilter, 'all' | 'completed' | 'unread'>) {
+  return statusFilter.value === filter
+    ? 'border-sky-400 bg-sky-500/10 text-sky-200'
+    : 'border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
 }
 </script>
 

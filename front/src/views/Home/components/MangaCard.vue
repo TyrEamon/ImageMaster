@@ -1,65 +1,73 @@
 <template>
-  <article class="group relative xl:w-64 w-36">
-    <div class="absolute left-2 top-2 z-10 flex max-w-[70%] flex-wrap gap-1">
-      <span
-        v-for="badge in statusBadges"
-        :key="badge"
-        class="rounded-full border border-neutral-700/80 bg-neutral-950/85 px-2 py-1 text-[10px] font-semibold tracking-wide text-neutral-100 backdrop-blur"
-      >
-        {{ badge }}
-      </span>
-    </div>
-
-    <div class="absolute right-2 top-2 z-10 flex gap-1">
-      <button
-        class="rounded-full border border-neutral-700/80 bg-neutral-950/85 px-2 py-1 text-[10px] text-neutral-200 backdrop-blur transition-colors hover:border-amber-400 hover:text-amber-200"
-        :class="shelfState.favorite ? 'border-amber-400 text-amber-200' : ''"
-        title="收藏"
-        @click.stop="toggleFavorite"
-      >
-        藏
-      </button>
-      <button
-        class="rounded-full border border-neutral-700/80 bg-neutral-950/85 px-2 py-1 text-[10px] text-neutral-200 backdrop-blur transition-colors hover:border-sky-400 hover:text-sky-200"
-        :class="shelfState.pinned ? 'border-sky-400 text-sky-200' : ''"
-        title="置顶"
-        @click.stop="togglePinned"
-      >
-        顶
-      </button>
-      <button
-        class="rounded-full border border-neutral-700/80 bg-neutral-950/85 px-2 py-1 text-[10px] text-neutral-200 backdrop-blur transition-colors hover:border-emerald-400 hover:text-emerald-200"
-        :class="shelfState.readLater ? 'border-emerald-400 text-emerald-200' : ''"
-        title="稍后看"
-        @click.stop="toggleReadLater"
-      >
-        后
-      </button>
-    </div>
-
+  <article class="xl:w-64 w-36 transition-transform duration-300 hover:-translate-y-1">
     <div
-      class="cursor-pointer overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 text-left transition-transform duration-300 hover:-translate-y-1 hover:border-neutral-700"
-      role="button"
-      tabindex="0"
-      @click="toMangaDetail"
-      @keydown.enter.prevent="toMangaDetail"
-      @keydown.space.prevent="toMangaDetail"
+      class="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 text-left transition-colors duration-300 hover:border-neutral-700"
     >
-      <div class="h-48 overflow-hidden bg-neutral-950">
-        <img :src="mangaImageSrc" :alt="manga.name" class="h-full w-full object-cover" />
-      </div>
-
-      <div class="flex flex-col gap-2 bg-neutral-900 p-3 xl:min-h-[8.75rem] min-h-[8.5rem]">
-        <h3 class="line-clamp-2 text-xs font-bold leading-5 text-white xl:text-sm">
-          {{ manga.name }}
-        </h3>
-
-        <div class="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
-          <span>{{ manga.imagesCount }} 张</span>
-          <span class="truncate text-right">{{ progressLabel }}</span>
+      <div
+        class="cursor-pointer"
+        role="button"
+        tabindex="0"
+        @click="toMangaDetail"
+        @keydown.enter.prevent="toMangaDetail"
+        @keydown.space.prevent="toMangaDetail"
+      >
+        <div class="h-48 overflow-hidden bg-neutral-950">
+          <img :src="mangaImageSrc" :alt="manga.name" class="h-full w-full object-cover" />
         </div>
 
-        <div class="mt-auto flex flex-col gap-1.5">
+        <div class="flex flex-col gap-2 bg-neutral-900 p-3 xl:min-h-[10.25rem] min-h-[10rem]">
+          <h3 class="line-clamp-2 text-xs font-bold leading-5 text-white xl:text-sm">
+            {{ manga.name }}
+          </h3>
+
+          <div v-if="statusBadges.length > 0" class="flex flex-wrap gap-1">
+            <span
+              v-for="badge in statusBadges"
+              :key="badge"
+              class="rounded-full border border-neutral-700 px-2 py-1 text-[10px] text-neutral-300"
+            >
+              {{ badge }}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
+            <span>{{ manga.imagesCount }} 张</span>
+            <span class="truncate text-right">{{ progressLabel }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-neutral-800 px-3 py-2">
+        <div class="mb-2 flex items-center justify-end gap-2">
+          <button
+            class="rounded-lg border p-2 text-neutral-300 transition-colors hover:bg-neutral-800"
+            :class="shelfState.favorite ? 'border-amber-400/60 bg-amber-500/10 text-amber-200' : 'border-neutral-700'"
+            title="收藏"
+            @click.stop="toggleFavorite"
+          >
+            <Heart :size="14" class="stroke-current" :fill="shelfState.favorite ? 'currentColor' : 'none'" />
+          </button>
+
+          <button
+            class="rounded-lg border p-2 text-neutral-300 transition-colors hover:bg-neutral-800"
+            :class="shelfState.pinned ? 'border-sky-400/60 bg-sky-500/10 text-sky-200' : 'border-neutral-700'"
+            title="置顶"
+            @click.stop="togglePinned"
+          >
+            <Pin :size="14" class="stroke-current" />
+          </button>
+
+          <button
+            class="rounded-lg border p-2 text-neutral-300 transition-colors hover:bg-neutral-800"
+            :class="shelfState.readLater ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200' : 'border-neutral-700'"
+            title="稍后看"
+            @click.stop="toggleReadLater"
+          >
+            <Clock3 :size="14" class="stroke-current" />
+          </button>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
           <div class="h-1.5 overflow-hidden rounded-full bg-neutral-800">
             <div
               class="h-full rounded-full bg-sky-500 transition-all duration-300"
@@ -76,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import { Clock3, Heart, Pin } from 'lucide-vue-next'
 import { useLibraryMetaStore } from '@/stores/libraryMetaStore'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
