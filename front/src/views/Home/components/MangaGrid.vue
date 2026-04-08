@@ -21,7 +21,7 @@
                 v-model="sortMode"
                 class="rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none transition-colors focus:border-sky-500"
               >
-                <option value="smart">智能排序</option>
+                <option value="smart">默认排序</option>
                 <option value="recent-read">最近阅读</option>
                 <option value="images-desc">图片数最多</option>
                 <option value="name-asc">名称 A-Z</option>
@@ -207,12 +207,6 @@ const visibleMangas = computed(() => {
 
         const inProgressDiff = Number(isInProgress(right.progress)) - Number(isInProgress(left.progress))
         if (inProgressDiff !== 0) return inProgressDiff
-
-        const favoriteDiff = Number(right.shelf.favorite) - Number(left.shelf.favorite)
-        if (favoriteDiff !== 0) return favoriteDiff
-
-        const readLaterDiff = Number(right.shelf.readLater) - Number(left.shelf.readLater)
-        if (readLaterDiff !== 0) return readLaterDiff
 
         const recentReadDiff = (right.progress?.timestamp ?? 0) - (left.progress?.timestamp ?? 0)
         if (recentReadDiff !== 0) return recentReadDiff

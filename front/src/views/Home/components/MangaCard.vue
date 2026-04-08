@@ -15,7 +15,7 @@
           <img :src="mangaImageSrc" :alt="manga.name" class="h-full w-full object-cover" />
         </div>
 
-        <div class="flex flex-col gap-2 bg-neutral-900 p-3 xl:min-h-[10.25rem] min-h-[10rem]">
+        <div class="flex flex-col gap-2 bg-neutral-900 p-3 xl:min-h-[6.5rem] min-h-[6.25rem]">
           <h3 class="line-clamp-2 text-xs font-bold leading-5 text-white xl:text-sm">
             {{ manga.name }}
           </h3>
