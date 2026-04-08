@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-shrink: Shrink .3s ease-in-out forwards;
+
+  @keyframes Shrink {
+    0% {
+      transform: scaleY(1);
+    }
+
+    100% {
+      transform: scaleY(0.5);
+    }
+  }
+}
+
+/* scroller */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+* { 
+  /* color: white; */
+}

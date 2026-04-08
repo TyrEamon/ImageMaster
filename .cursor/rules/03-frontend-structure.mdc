@@ -1,0 +1,44 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 前端结构
+
+前端使用 Svelte 和 TypeScript 开发，实现用户界面和交互逻辑。
+
+## 主要文件
+
+- [frontend/src/App.svelte](mdc:frontend/src/App.svelte) - 主应用组件
+- [frontend/src/main.ts](mdc:frontend/src/main.ts) - 应用入口点
+- [frontend/index.html](mdc:frontend/index.html) - HTML 模板
+
+## 核心功能
+
+### 与后端通信
+
+前端通过 Wails 生成的绑定函数调用后端 Go 方法：
+
+```typescript
+import { 
+  GetAllMangas, 
+  GetMangaImages, 
+  SelectLibrary, 
+  GetLibraries, 
+  DeleteManga,
+  GetImageDataUrl
+} from '../wailsjs/go/main/App';
+```
+
+### 主要页面
+
+应用有两个主要视图：
+1. 漫画库列表视图 - 显示所有可用漫画
+2. 漫画阅读视图 - 用于浏览选定漫画的图片
+
+### 关键功能
+
+- 漫画库管理：`chooseLibrary`、`loadLibraries`
+- 漫画浏览：`viewManga`、`navigateToNextManga`、`navigateToPrevManga`
+- 漫画操作：`deleteManga`、`deleteAndViewNextManga`
+

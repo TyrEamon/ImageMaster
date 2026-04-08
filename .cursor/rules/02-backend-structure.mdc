@@ -1,0 +1,55 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 后端结构
+
+Go 后端处理文件系统操作和数据管理。
+
+## 主要文件
+
+- [app.go](mdc:app.go) - 应用程序的核心逻辑
+- [main.go](mdc:main.go) - 程序入口点，初始化 Wails 应用
+
+## 核心组件
+
+### App 结构体
+
+定义在 [app.go](mdc:app.go) 中：
+
+```go
+type App struct {
+    ctx        context.Context
+    config     Config
+    mangas     []Manga
+    configPath string
+}
+```
+
+### 数据模型
+
+主要数据结构包括：
+
+```go
+// 漫画信息结构
+type Manga struct {
+    Name        string   `json:"name"`
+    Path        string   `json:"path"`
+    PreviewImg  string   `json:"previewImg"`
+    ImagesCount int      `json:"imagesCount"`
+    Images      []string `json:"images,omitempty"`
+}
+
+// 应用配置
+type Config struct {
+    Libraries []string `json:"libraries"`
+}
+```
+
+### 主要功能
+
+- 配置管理：`LoadConfig`、`SaveConfig`
+- 漫画库管理：`SelectLibrary`、`LoadLibrary`、`LoadAllLibraries`
+- 漫画操作：`GetAllMangas`、`GetMangaImages`、`DeleteManga`
+- 图片处理：`GetImageDataUrl`、`GetImagesInDir`

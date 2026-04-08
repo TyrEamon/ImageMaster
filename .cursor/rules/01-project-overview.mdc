@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ImageMaster - 漫画查看器
+
+本项目是一个基于 [Wails](mdc:https:/wails.io) 框架开发的桌面应用程序，用于管理和查看漫画/图片集合。
+
+## 主要功能
+
+- 添加和管理多个漫画库
+- 自动扫描并展示所有漫画文件夹
+- 预览和浏览漫画内的图片
+- 删除漫画功能
+
+## 项目结构
+
+- Go 后端：[app.go](mdc:app.go) 和 [main.go](mdc:main.go)
+- 前端：使用 Svelte + TypeScript，主要文件是 [App.svelte](mdc:frontend/src/App.svelte)
+- 构建配置：[wails.json](mdc:wails.json)
+
