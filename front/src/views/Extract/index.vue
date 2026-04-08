@@ -4,7 +4,7 @@
       <div class="max-w-3xl">
         <h1 class="text-2xl font-semibold">解压管理</h1>
         <p class="mt-2 text-sm leading-6 text-neutral-400">
-          扫描已配置漫画库中的压缩包，按“有子文件夹或已有图片文件”规则判断是否已解压。
+          扫描已配置漫画库中的压缩包，按“已有子文件夹或已有图片文件”的规则判断是否已解压。
         </p>
       </div>
 
@@ -26,16 +26,19 @@
         <div class="mt-3 text-2xl font-semibold">{{ rootsCount }}</div>
         <div class="mt-2 text-xs text-neutral-400">活动漫画库会优先参与扫描。</div>
       </div>
+
       <div class="rounded-2xl border border-neutral-700/70 bg-neutral-900/70 p-4">
         <div class="text-xs uppercase tracking-wide text-neutral-500">待解压</div>
         <div class="mt-3 text-2xl font-semibold text-amber-300">{{ pendingCount }}</div>
         <div class="mt-2 text-xs text-neutral-400">批量解压只会处理这些压缩包。</div>
       </div>
+
       <div class="rounded-2xl border border-neutral-700/70 bg-neutral-900/70 p-4">
         <div class="text-xs uppercase tracking-wide text-neutral-500">判定已解压</div>
         <div class="mt-3 text-2xl font-semibold text-emerald-300">{{ extractedCount }}</div>
         <div class="mt-2 text-xs text-neutral-400">目录下已有子文件夹或图片时会跳过。</div>
       </div>
+
       <div class="rounded-2xl border border-neutral-700/70 bg-neutral-900/70 p-4">
         <div class="text-xs uppercase tracking-wide text-neutral-500">Bandizip</div>
         <div class="mt-3 truncate text-sm font-medium">
@@ -64,7 +67,8 @@
         </div>
 
         <div class="text-xs text-neutral-400">
-          当前活动漫画库：<span class="select-all text-neutral-200">{{ scanResult?.activeLibrary || '-' }}</span>
+          当前活动漫画库：
+          <span class="select-all text-neutral-200">{{ scanResult?.activeLibrary || '-' }}</span>
         </div>
       </div>
 
@@ -117,6 +121,7 @@
             <th class="px-3 py-3 text-center">操作</th>
           </tr>
         </thead>
+
         <tbody>
           <tr
             v-for="item in visibleItems"
@@ -132,19 +137,28 @@
               </div>
               <div class="mt-2 text-[11px] text-neutral-500">{{ item.reason }}</div>
             </td>
+
             <td class="px-3 py-3 align-top">
               <div class="font-medium text-neutral-100">{{ item.archiveName }}</div>
               <div class="mt-1 select-all break-all text-[11px] text-neutral-500">
                 {{ item.archivePath }}
               </div>
             </td>
+
             <td class="px-3 py-3 align-top">
-              <div class="select-all break-all text-[11px] text-neutral-400">{{ item.libraryPath }}</div>
+              <div class="select-all break-all text-[11px] text-neutral-400">
+                {{ item.libraryPath }}
+              </div>
             </td>
+
             <td class="px-3 py-3 align-top">
-              <div class="select-all break-all text-[11px] text-neutral-400">{{ item.targetDir }}</div>
+              <div class="select-all break-all text-[11px] text-neutral-400">
+                {{ item.targetDir }}
+              </div>
             </td>
+
             <td class="px-3 py-3 align-top text-neutral-300">{{ formatSize(item.sizeBytes) }}</td>
+
             <td class="px-3 py-3 align-top">
               <div class="flex justify-center gap-2">
                 <button
@@ -154,6 +168,7 @@
                 >
                   复制压缩包路径
                 </button>
+
                 <button
                   class="cursor-pointer rounded-xl border border-neutral-700 px-3 py-1.5 text-[11px] text-neutral-200 transition-colors duration-200 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
                   :disabled="extracting"
@@ -161,6 +176,7 @@
                 >
                   复制目标目录
                 </button>
+
                 <button
                   class="cursor-pointer rounded-xl border border-blue-500/40 px-3 py-1.5 text-[11px] text-blue-100 transition-colors duration-200 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-40"
                   :disabled="extracting || item.status !== 'pending' || !scanResult?.bandizipPath"
@@ -181,16 +197,43 @@
 import { Button } from '@/components'
 import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import {
-  ExtractArchive,
-  ExtractPendingArchives,
-  ScanArchives,
-  type ArchiveItem,
-  type ScanResult,
-} from '../../../wailsjs/go/archive/API'
+import { ExtractArchive, ExtractPendingArchives, ScanArchives } from '../../../wailsjs/go/archive/API'
 import { LoadActiveLibrary } from '../../../wailsjs/go/library/API'
 
 type StatusFilter = 'all' | 'pending' | 'extracted' | 'failed'
+
+interface ArchiveItem {
+  archivePath: string
+  archiveName: string
+  libraryPath: string
+  targetDir: string
+  status: string
+  reason: string
+  sizeBytes: number
+}
+
+interface ScanResult {
+  roots: string[]
+  activeLibrary: string
+  bandizipPath: string
+  totalCount: number
+  pendingCount: number
+  extractedCount: number
+  failedCount: number
+  items: ArchiveItem[]
+}
+
+interface ExtractSummary {
+  totalCount: number
+  extractedCount: number
+  skippedCount: number
+  failedCount: number
+}
+
+interface ExtractActionResult {
+  status: string
+  message: string
+}
 
 const scanResult = ref<ScanResult | null>(null)
 const loading = ref(false)
@@ -211,14 +254,14 @@ const filterOptions = computed(() => [
 
 const visibleItems = computed(() => {
   if (!scanResult.value) {
-    return []
+    return [] as ArchiveItem[]
   }
 
   if (statusFilter.value === 'all') {
     return scanResult.value.items
   }
 
-  return scanResult.value.items.filter((item) => item.status === statusFilter.value)
+  return scanResult.value.items.filter((item: ArchiveItem) => item.status === statusFilter.value)
 })
 
 const statusLabelMap: Record<string, string> = {
@@ -240,7 +283,7 @@ onMounted(async () => {
 async function loadArchives() {
   loading.value = true
   try {
-    scanResult.value = await ScanArchives()
+    scanResult.value = (await ScanArchives()) as ScanResult
   } catch (error: any) {
     toast.error(error?.message || '扫描压缩包失败')
   } finally {
@@ -251,7 +294,8 @@ async function loadArchives() {
 async function extractPendingArchives() {
   extracting.value = true
   try {
-    const summary = await ExtractPendingArchives()
+    const summary = (await ExtractPendingArchives()) as ExtractSummary
+
     if (summary.totalCount === 0) {
       toast.info('没有待解压的压缩包')
       return
@@ -275,7 +319,8 @@ async function extractPendingArchives() {
 async function extractSingle(item: ArchiveItem) {
   extracting.value = true
   try {
-    const result = await ExtractArchive(item.archivePath)
+    const result = (await ExtractArchive(item.archivePath)) as ExtractActionResult
+
     if (result.status === 'extracted') {
       await LoadActiveLibrary()
       toast.success('解压完成', {
