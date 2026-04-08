@@ -2,6 +2,7 @@ package archive
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +25,8 @@ var archiveStatusOrder = map[string]int{
 	"failed":    1,
 	"extracted": 2,
 }
+
+const extractTempDirPrefix = ".imagemaster-extract-"
 
 type ArchiveItem struct {
 	ArchivePath string `json:"archivePath"`
@@ -266,12 +269,26 @@ func (a *API) extractArchiveItem(item ArchiveItem, bandizipPath string) ExtractA
 		return result
 	}
 
-	logger.Info("Extract archive: %s -> %s", item.ArchivePath, item.TargetDir)
-	cmd := exec.Command(bandizipPath, "x", "-y", item.ArchivePath, "-o:"+item.TargetDir)
+	tempDir, err := os.MkdirTemp("", extractTempDirPrefix)
+	if err != nil {
+		result.Status = "failed"
+		result.Message = fmt.Sprintf("创建临时解压目录失败: %v", err)
+		return result
+	}
+	defer os.RemoveAll(tempDir)
+
+	logger.Info("Extract archive: %s -> %s (temp: %s)", item.ArchivePath, item.TargetDir, tempDir)
+	cmd := exec.Command(bandizipPath, "x", "-y", item.ArchivePath, tempDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		result.Status = "failed"
 		result.Message = formatCommandError(err, output)
+		return result
+	}
+
+	if err := mergeExtractedContent(tempDir, item.TargetDir); err != nil {
+		result.Status = "failed"
+		result.Message = fmt.Sprintf("合并解压内容失败: %v", err)
 		return result
 	}
 
@@ -328,7 +345,7 @@ func (a *API) detectBandizipPath() string {
 	candidates := []string{}
 
 	if configured := strings.TrimSpace(a.configManager.GetBandizipPath()); configured != "" {
-		candidates = append(candidates, configured)
+		candidates = append(candidates, normalizeBandizipCandidate(configured)...)
 	}
 
 	if programFiles := os.Getenv("ProgramFiles"); programFiles != "" {
@@ -363,6 +380,21 @@ func (a *API) detectBandizipPath() string {
 	}
 
 	return ""
+}
+
+func normalizeBandizipCandidate(candidate string) []string {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" {
+		return nil
+	}
+
+	results := []string{candidate}
+	baseName := strings.ToLower(filepath.Base(candidate))
+	if baseName == "bandizip.exe" {
+		results = append([]string{filepath.Join(filepath.Dir(candidate), "bz.exe")}, results...)
+	}
+
+	return results
 }
 
 func resolveExtractDirectory(archivePath string, rootPath string) string {
@@ -409,6 +441,9 @@ func hasExtractedContent(targetDir string, archivePath string) (bool, error) {
 
 	for _, child := range children {
 		childPath := filepath.Join(targetDir, child.Name())
+		if child.IsDir() && strings.HasPrefix(child.Name(), extractTempDirPrefix) {
+			continue
+		}
 		if child.IsDir() {
 			return true, nil
 		}
@@ -423,6 +458,98 @@ func hasExtractedContent(targetDir string, archivePath string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func mergeExtractedContent(tempDir string, targetDir string) error {
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(tempDir, entry.Name())
+		dstPath := filepath.Join(targetDir, entry.Name())
+		if err := movePath(srcPath, dstPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func movePath(srcPath string, dstPath string) error {
+	if _, err := os.Stat(dstPath); err == nil {
+		return fmt.Errorf("目标已存在: %s", dstPath)
+	}
+
+	if err := os.Rename(srcPath, dstPath); err == nil {
+		return nil
+	}
+
+	info, err := os.Stat(srcPath)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		if err := copyDir(srcPath, dstPath); err != nil {
+			return err
+		}
+		return os.RemoveAll(srcPath)
+	}
+
+	if err := copyFile(srcPath, dstPath); err != nil {
+		return err
+	}
+
+	return os.Remove(srcPath)
+}
+
+func copyDir(srcDir string, dstDir string) error {
+	if err := os.MkdirAll(dstDir, 0o755); err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(srcDir, entry.Name())
+		dstPath := filepath.Join(dstDir, entry.Name())
+		if entry.IsDir() {
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := copyFile(srcPath, dstPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func copyFile(srcPath string, dstPath string) error {
+	srcFile, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.OpenFile(dstPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+
+	return dstFile.Sync()
 }
 
 func formatCommandError(err error, output []byte) string {

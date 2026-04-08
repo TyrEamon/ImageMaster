@@ -57,7 +57,9 @@
       <div class="text-xs leading-6 text-neutral-400">
         当前解压功能依赖外部 Bandizip 控制台工具。推荐填写类似
         <span class="select-all text-neutral-200">D:\bandizip\bz.exe</span>
-        的可执行文件路径；如果留空，软件会尝试自动检测常见安装位置。
+        的可执行文件路径；如果填的是 <span class="select-all text-neutral-200">Bandizip.exe</span
+        >，软件会自动尝试同目录下的 <span class="select-all text-neutral-200">bz.exe</span
+        >；如果留空，软件会尝试自动检测常见安装位置。
       </div>
     </div>
 
