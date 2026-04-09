@@ -15,7 +15,12 @@ type rankingCachePayload struct {
 	Result   RankingResult `json:"result"`
 }
 
-var rankingCacheFilePattern = regexp.MustCompile(`[^a-z0-9_-]+`)
+type detailCachePayload struct {
+	CachedAt time.Time    `json:"cachedAt"`
+	Result   DetailResult `json:"result"`
+}
+
+var cacheFilePattern = regexp.MustCompile(`[^a-z0-9_-]+`)
 
 func (s *JmSource) loadRankingCache(kind string, page int) (RankingResult, bool, bool) {
 	cachePath, err := s.rankingCachePath(kind, page)
@@ -71,13 +76,74 @@ func (s *JmSource) saveRankingCache(kind string, page int, result RankingResult)
 	return nil
 }
 
+func (s *JmSource) loadDetailCache(itemID string) (DetailResult, bool, bool) {
+	cachePath, err := s.detailCachePath(itemID)
+	if err != nil {
+		return DetailResult{}, false, false
+	}
+
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return DetailResult{}, false, false
+	}
+
+	var payload detailCachePayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return DetailResult{}, false, false
+	}
+
+	if payload.CachedAt.IsZero() {
+		payload.CachedAt = time.Unix(0, 0)
+	}
+	if payload.Result.Source.ID == "" {
+		payload.Result.Source = s.Summary()
+	}
+
+	fresh := time.Since(payload.CachedAt) <= s.detailCacheTTL()
+	return payload.Result, fresh, true
+}
+
+func (s *JmSource) saveDetailCache(itemID string, result DetailResult) error {
+	cachePath, err := s.detailCachePath(itemID)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
+		return err
+	}
+
+	payload := detailCachePayload{
+		CachedAt: time.Now(),
+		Result:   result,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(cachePath, data, 0o644); err != nil {
+		return err
+	}
+
+	s.cleanupOldCacheFiles(filepath.Dir(cachePath), 7*24*time.Hour)
+	return nil
+}
+
 func (s *JmSource) rankingCachePath(kind string, page int) (string, error) {
 	rootDir := s.jmCacheBaseDir()
 	cacheDir := filepath.Join(rootDir, "meta", "rankings")
-	fileName := sanitizeRankingCacheSegment(kind)
+	fileName := sanitizeCacheSegment(kind, "week")
 	if page > 1 {
 		fileName += "-" + strconvInt(page)
 	}
+	return filepath.Join(cacheDir, fileName+".json"), nil
+}
+
+func (s *JmSource) detailCachePath(itemID string) (string, error) {
+	rootDir := s.jmCacheBaseDir()
+	cacheDir := filepath.Join(rootDir, "meta", "details")
+	fileName := sanitizeCacheSegment(itemID, "detail")
 	return filepath.Join(cacheDir, fileName+".json"), nil
 }
 
@@ -96,13 +162,32 @@ func (s *JmSource) rankingCacheTTL(kind string) time.Duration {
 	}
 }
 
-func (s *JmSource) cleanupOldRankingCacheFiles(cacheDir string) {
+func (s *JmSource) detailCacheTTL() time.Duration {
+	return 12 * time.Hour
+}
+
+func (s *JmSource) shouldRefreshRankingCache(result RankingResult) bool {
+	checkCount := min(len(result.Items), 12)
+	if checkCount == 0 {
+		return false
+	}
+
+	for i := 0; i < checkCount; i++ {
+		if strings.TrimSpace(result.Items[i].Cover) == "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *JmSource) cleanupOldCacheFiles(cacheDir string, maxAge time.Duration) {
 	entries, err := os.ReadDir(cacheDir)
 	if err != nil {
 		return
 	}
 
-	expireBefore := time.Now().Add(-7 * 24 * time.Hour)
+	expireBefore := time.Now().Add(-maxAge)
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -119,6 +204,10 @@ func (s *JmSource) cleanupOldRankingCacheFiles(cacheDir string) {
 	}
 }
 
+func (s *JmSource) cleanupOldRankingCacheFiles(cacheDir string) {
+	s.cleanupOldCacheFiles(cacheDir, 7*24*time.Hour)
+}
+
 func (s *JmSource) jmCacheBaseDir() string {
 	configured := ""
 	if s.configManager != nil {
@@ -130,15 +219,15 @@ func (s *JmSource) jmCacheBaseDir() string {
 	return filepath.Join(os.TempDir(), "imagemaster-jm-cache")
 }
 
-func sanitizeRankingCacheSegment(value string) string {
+func sanitizeCacheSegment(value string, fallback string) string {
 	text := strings.ToLower(strings.TrimSpace(value))
 	if text == "" {
-		return "week"
+		return fallback
 	}
-	text = rankingCacheFilePattern.ReplaceAllString(text, "-")
+	text = cacheFilePattern.ReplaceAllString(text, "-")
 	text = strings.Trim(text, "-_.")
 	if text == "" {
-		return "week"
+		return fallback
 	}
 	return text
 }

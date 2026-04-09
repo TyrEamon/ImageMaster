@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"ImageMaster/core/jmbridge"
@@ -66,7 +67,7 @@ func (s *JmSource) Ranking(kind string, page int) (RankingResult, error) {
 		page = 1
 	}
 
-	if cached, fresh, ok := s.loadRankingCache(normalizedKind, page); ok && fresh {
+	if cached, fresh, ok := s.loadRankingCache(normalizedKind, page); ok && fresh && !s.shouldRefreshRankingCache(cached) {
 		return cached, nil
 	}
 
@@ -90,12 +91,24 @@ func (s *JmSource) Ranking(kind string, page int) (RankingResult, error) {
 }
 
 func (s *JmSource) Detail(itemID string) (DetailResult, error) {
-	result, err := jmbridge.Detail(s.ctx, itemID, s.proxy())
+	normalizedItemID := strings.TrimSpace(itemID)
+	if normalizedItemID == "" {
+		return DetailResult{}, fmt.Errorf("missing JM detail item id")
+	}
+
+	if cached, fresh, ok := s.loadDetailCache(normalizedItemID); ok && fresh {
+		return cached, nil
+	}
+
+	result, err := jmbridge.Detail(s.ctx, normalizedItemID, s.proxy())
 	if err != nil {
+		if cached, _, ok := s.loadDetailCache(normalizedItemID); ok {
+			return cached, nil
+		}
 		return DetailResult{}, err
 	}
 
-	return DetailResult{
+	mapped := DetailResult{
 		Source: s.Summary(),
 		Item: DetailItem{
 			ID:        strings.TrimSpace(result.Item.ID),
@@ -108,7 +121,9 @@ func (s *JmSource) Detail(itemID string) (DetailResult, error) {
 			DetailURL: result.Item.DetailURL,
 			Chapters:  s.mapChapters(result.Item.Chapters),
 		},
-	}, nil
+	}
+	_ = s.saveDetailCache(normalizedItemID, mapped)
+	return mapped, nil
 }
 
 func (s *JmSource) Images(chapterID string) (ImageResult, error) {

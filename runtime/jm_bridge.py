@@ -574,7 +574,7 @@ def run_ranking(kind, page, proxy_url):
     if ranking_page is None:
         return fail("unable to load ranking: " + " | ".join(errors))
 
-    items = normalize_search_page(ranking_page, client=client, enrich_cover_limit=6)
+    items = normalize_search_page(ranking_page, client=client, enrich_cover_limit=12)
     emit(
         {
             "type": "result",

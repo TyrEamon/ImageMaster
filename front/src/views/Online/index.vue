@@ -1,5 +1,5 @@
 <template>
-  <div ref="pageRef" class="min-h-screen overflow-y-auto px-8 py-6">
+  <div class="min-h-screen overflow-y-auto px-8 py-6">
     <section class="mb-6 rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6">
       <div class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div class="max-w-3xl">
@@ -59,7 +59,7 @@
     <section class="mb-6 grid gap-4 lg:grid-cols-[2fr_1fr]">
       <div class="space-y-4">
         <div
-          v-if="supportsRanking"
+          v-if="supportsRanking && !isSearchMode"
           class="rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6"
         >
           <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
@@ -168,11 +168,19 @@
             </div>
 
             <div
-              v-if="featuredVisibleItems.length < featuredResult.items.length || featuredLoadingMore"
-              ref="featuredSentinelRef"
+              v-if="featuredResult.items.length > FEATURED_INITIAL_COUNT"
               class="mt-5 rounded-2xl border border-dashed border-neutral-800 px-6 py-5 text-center text-sm text-neutral-500"
             >
-              {{ featuredLoadingMore ? '正在加载更多推荐...' : '继续下滑可自动加载更多推荐' }}
+              <button
+                v-if="canLoadMoreFeatured"
+                class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="featuredLoadingMore"
+                @click="loadMoreFeatured"
+              >
+                {{ featuredLoadingMore ? '正在加载更多...' : '加载更多' }}
+              </button>
+
+              <div v-else class="text-neutral-500">已全部加载完成</div>
             </div>
           </div>
         </div>
@@ -180,18 +188,36 @@
         <div class="rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6">
           <div class="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 class="text-lg font-semibold text-white">搜索结果</h2>
+              <div class="mb-1 flex flex-wrap items-center gap-2">
+                <span
+                  v-if="isSearchMode"
+                  class="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-[11px] text-sky-100"
+                >
+                  搜索结果视图
+                </span>
+                <h2 class="text-lg font-semibold text-white">搜索结果</h2>
+              </div>
               <p class="mt-1 text-sm text-neutral-400">{{ resultCaption }}</p>
             </div>
 
-            <button
-              v-if="result.hasMore"
-              class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="searching"
-              @click="runSearch(result.page + 1)"
-            >
-              下一页
-            </button>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-if="isSearchMode && supportsRanking"
+                class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
+                @click="clearResult"
+              >
+                返回推荐区
+              </button>
+
+              <button
+                v-if="result.hasMore"
+                class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="searching"
+                @click="runSearch(result.page + 1)"
+              >
+                下一页
+              </button>
+            </div>
           </div>
 
           <div
@@ -205,14 +231,14 @@
             v-else-if="result.items.length === 0"
             class="rounded-2xl border border-dashed border-neutral-800 px-6 py-12 text-center text-sm text-neutral-500"
           >
-            <div>当前还没有搜索结果。</div>
-            <div class="mt-2">
-              {{
-                supportsRanking
-                  ? '可以先看看上面的榜单，或者直接输入关键词搜索。'
-                  : '先选择一个源，再输入关键词开始搜索。'
-              }}
-            </div>
+              <div>当前还没有搜索结果。</div>
+              <div class="mt-2">
+                {{
+                  supportsRanking
+                    ? '可以返回推荐区看看榜单，或者换一个关键词再试。'
+                    : '先选择一个源，再输入关键词开始搜索。'
+                }}
+              </div>
           </div>
 
           <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -348,7 +374,7 @@
 <script setup lang="ts">
 import { Input } from '@/components'
 import { useLibraryMetaStore } from '@/stores/libraryMetaStore'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { GetSourceRanking, ListSources, SearchSources } from '../../../wailsjs/go/source/API'
 
@@ -392,14 +418,11 @@ interface RankingResult {
   items: SearchItem[]
 }
 
-const FEATURED_BATCH_SIZE = 6
+const FEATURED_INITIAL_COUNT = 9
+const FEATURED_LOAD_MORE_COUNT = 6
 
 const router = useRouter()
 const libraryMetaStore = useLibraryMetaStore()
-
-const pageRef = ref<HTMLElement | null>(null)
-const featuredSentinelRef = ref<HTMLElement | null>(null)
-let featuredObserver: IntersectionObserver | null = null
 
 const sources = ref<SourceSummary[]>([])
 const selectedSourceId = ref('')
@@ -409,7 +432,7 @@ const errorMessage = ref('')
 const rankingLoading = ref(false)
 const featuredError = ref('')
 const featuredKind = ref('')
-const featuredVisibleCount = ref(FEATURED_BATCH_SIZE)
+const featuredVisibleCount = ref(FEATURED_INITIAL_COUNT)
 const featuredLoadingMore = ref(false)
 
 function createEmptySourceSummary(): SourceSummary {
@@ -465,6 +488,14 @@ const featuredVisibleItems = computed(() =>
   featuredResult.value.items.slice(0, featuredVisibleCount.value),
 )
 
+const canLoadMoreFeatured = computed(
+  () => featuredVisibleCount.value < featuredResult.value.items.length,
+)
+
+const isSearchMode = computed(
+  () => searching.value || Boolean(result.value.query) || Boolean(errorMessage.value),
+)
+
 const resultCaption = computed(() => {
   if (!result.value.query) {
     return '当前还没有搜索结果。'
@@ -476,17 +507,6 @@ const resultCaption = computed(() => {
 onMounted(async () => {
   sources.value = await ListSources()
   selectedSourceId.value = sources.value[0]?.id ?? ''
-  await nextTick()
-  setupFeaturedObserver()
-})
-
-onBeforeUnmount(() => {
-  featuredObserver?.disconnect()
-})
-
-watch(featuredSentinelRef, async () => {
-  await nextTick()
-  setupFeaturedObserver()
 })
 
 watch(
@@ -495,7 +515,7 @@ watch(
     clearResult()
     featuredError.value = ''
     featuredResult.value = createEmptyRankingResult()
-    featuredVisibleCount.value = FEATURED_BATCH_SIZE
+    featuredVisibleCount.value = FEATURED_INITIAL_COUNT
     featuredLoadingMore.value = false
 
     if (supportsRanking.value && rankingKinds.value.length > 0) {
@@ -508,7 +528,7 @@ watch(
 watch(
   () => [featuredResult.value.kind, featuredResult.value.items.length],
   () => {
-    featuredVisibleCount.value = FEATURED_BATCH_SIZE
+    featuredVisibleCount.value = FEATURED_INITIAL_COUNT
     featuredLoadingMore.value = false
   },
 )
@@ -538,7 +558,7 @@ async function loadRanking(kind: string) {
   featuredKind.value = kind
   rankingLoading.value = true
   featuredError.value = ''
-  featuredVisibleCount.value = FEATURED_BATCH_SIZE
+  featuredVisibleCount.value = FEATURED_INITIAL_COUNT
   featuredLoadingMore.value = false
 
   try {
@@ -549,6 +569,21 @@ async function loadRanking(kind: string) {
   } finally {
     rankingLoading.value = false
   }
+}
+
+function loadMoreFeatured() {
+  if (featuredLoadingMore.value || !canLoadMoreFeatured.value) {
+    return
+  }
+
+  featuredLoadingMore.value = true
+  window.setTimeout(() => {
+    featuredVisibleCount.value = Math.min(
+      featuredVisibleCount.value + FEATURED_LOAD_MORE_COUNT,
+      featuredResult.value.items.length,
+    )
+    featuredLoadingMore.value = false
+  }, 280)
 }
 
 function openDetail(source: string, id: string) {
@@ -591,49 +626,6 @@ function capabilityLabel(capability: string) {
     default:
       return capability
   }
-}
-
-function setupFeaturedObserver() {
-  featuredObserver?.disconnect()
-
-  if (!pageRef.value || !featuredSentinelRef.value) {
-    return
-  }
-
-  featuredObserver = new IntersectionObserver(
-    (entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) {
-        return
-      }
-      maybeLoadMoreFeatured()
-    },
-    {
-      root: pageRef.value,
-      rootMargin: '160px 0px',
-      threshold: 0.1,
-    },
-  )
-
-  featuredObserver.observe(featuredSentinelRef.value)
-}
-
-function maybeLoadMoreFeatured() {
-  if (featuredLoadingMore.value) {
-    return
-  }
-
-  if (featuredVisibleCount.value >= featuredResult.value.items.length) {
-    return
-  }
-
-  featuredLoadingMore.value = true
-  window.setTimeout(() => {
-    featuredVisibleCount.value = Math.min(
-      featuredVisibleCount.value + FEATURED_BATCH_SIZE,
-      featuredResult.value.items.length,
-    )
-    featuredLoadingMore.value = false
-  }, 280)
 }
 </script>
 
