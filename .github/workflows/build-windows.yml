@@ -2,6 +2,17 @@ name: Build Windows EXE
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Also publish this build to GitHub Releases"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Release tag for manual publish, e.g. v0.3.0"
+        required: false
+        default: ""
+        type: string
   push:
     tags:
       - "v*"
@@ -53,17 +64,28 @@ jobs:
         id: version
         shell: pwsh
         run: |
+          $rawTag = ""
           if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}") {
-            $version = "${{ github.ref_name }}"
+            $rawTag = "${{ github.ref_name }}"
+          } elseif ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.publish_release }}" -eq "true" -and "${{ github.event.inputs.release_tag }}") {
+            $rawTag = "${{ github.event.inputs.release_tag }}"
+          }
+
+          $rawTag = $rawTag.Trim()
+
+          if ($rawTag) {
+            if (-not $rawTag.StartsWith("v")) {
+              $rawTag = "v$rawTag"
+            }
+            $version = $rawTag.Substring(1)
           } else {
             $shortSha = "${{ github.sha }}".Substring(0, 7)
             $version = "dev-${{ github.run_number }}-$shortSha"
           }
+
           $version = $version.Trim()
-          if ($version.StartsWith("v")) {
-            $version = $version.Substring(1)
-          }
           "app_version=$version" >> $env:GITHUB_OUTPUT
+          "release_tag=$rawTag" >> $env:GITHUB_OUTPUT
           "APP_VERSION=$version" >> $env:GITHUB_ENV
           "BUILD_COMMIT=${{ github.sha }}" >> $env:GITHUB_ENV
           "BUILD_TIME=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK')" >> $env:GITHUB_ENV
@@ -104,9 +126,12 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release assets
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          name: ${{ steps.version.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
           files: |
             build/ImageMaster-${{ steps.version.outputs.app_version }}-windows-amd64.zip
           generate_release_notes: true
