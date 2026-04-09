@@ -20,7 +20,7 @@
         <div class="flex flex-wrap gap-2">
           <button
             class="cursor-pointer rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-            :disabled="loading || downloading || imageResult.images.length === 0"
+            :disabled="loading || downloading || resolvedImages.length === 0"
             @click="downloadCurrentChapter"
           >
             {{ downloading ? '下载中...' : '下载到本地漫画库' }}
@@ -45,7 +45,7 @@
       class="flex flex-1 flex-col items-center gap-5 overflow-y-auto bg-neutral-950 px-4 py-5"
     >
       <div
-        v-for="(image, index) in imageResult.images"
+        v-for="(image, index) in resolvedImages"
         :key="`${image}-${index}`"
         class="w-full max-w-[1200px]"
       >
@@ -57,7 +57,7 @@
         />
       </div>
 
-      <div v-if="imageResult.images.length === 0" class="py-8 text-sm text-neutral-500">
+      <div v-if="resolvedImages.length === 0" class="py-8 text-sm text-neutral-500">
         当前章节还没有返回图片。
       </div>
 
@@ -88,7 +88,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
-import { LoadActiveLibrary } from '../../../wailsjs/go/library/API'
+import { GetImageDataUrl, LoadActiveLibrary } from '../../../wailsjs/go/library/API'
 import { DownloadSourceChapter, GetSourceImages } from '../../../wailsjs/go/source/API'
 
 interface SourceSummary {
@@ -143,18 +143,19 @@ const loading = ref(false)
 const downloading = ref(false)
 const errorMessage = ref('')
 const imageResult = ref<ImageResult>(createEmptyImageResult())
+const resolvedImages = ref<string[]>([])
 
 const sourceId = computed(() => String(route.query.source ?? '').trim())
 const chapterId = computed(() => String(route.query.chapter ?? '').trim())
 
 onMounted(() => {
-  loadImages()
+  void loadImages()
 })
 
 watch(
   () => [sourceId.value, chapterId.value],
   () => {
-    loadImages()
+    void loadImages()
   },
 )
 
@@ -166,14 +167,51 @@ async function loadImages() {
 
   loading.value = true
   errorMessage.value = ''
+  resolvedImages.value = []
 
   try {
     imageResult.value = await GetSourceImages(sourceId.value, chapterId.value)
+    resolvedImages.value = await resolveImageUrls(imageResult.value.images)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '加载图片失败，请稍后再试。'
   } finally {
     loading.value = false
   }
+}
+
+async function resolveImageUrls(images: string[]) {
+  const imagePromises = images.map(async (image) => {
+    const normalized = String(image || '').trim()
+    if (!normalized) {
+      return null
+    }
+
+    if (!isLocalFilePath(normalized)) {
+      return normalized
+    }
+
+    try {
+      return await GetImageDataUrl(normalized)
+    } catch (error) {
+      console.error(`加载本地缓存图片失败: ${normalized}`, error)
+      return null
+    }
+  })
+
+  const loadedImages = await Promise.all(imagePromises)
+  return loadedImages.filter((image): image is string => Boolean(image))
+}
+
+function isLocalFilePath(value: string) {
+  if (!value) {
+    return false
+  }
+
+  if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) {
+    return false
+  }
+
+  return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\')
 }
 
 async function downloadCurrentChapter() {

@@ -58,18 +58,35 @@ func (s *JmSource) Search(query string, page int) (SearchResult, error) {
 }
 
 func (s *JmSource) Ranking(kind string, page int) (RankingResult, error) {
-	result, err := jmbridge.Ranking(s.ctx, kind, s.proxy(), page)
+	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
+	if normalizedKind == "" {
+		normalizedKind = "week"
+	}
+	if page < 1 {
+		page = 1
+	}
+
+	if cached, fresh, ok := s.loadRankingCache(normalizedKind, page); ok && fresh {
+		return cached, nil
+	}
+
+	result, err := jmbridge.Ranking(s.ctx, normalizedKind, s.proxy(), page)
 	if err != nil {
+		if cached, _, ok := s.loadRankingCache(normalizedKind, page); ok {
+			return cached, nil
+		}
 		return RankingResult{}, err
 	}
 
-	return RankingResult{
+	mapped := RankingResult{
 		Source: s.Summary(),
 		Kind:   result.Kind,
 		Page:   result.Page,
 		Total:  result.Total,
 		Items:  s.mapItems(result.Items),
-	}, nil
+	}
+	_ = s.saveRankingCache(normalizedKind, page, mapped)
+	return mapped, nil
 }
 
 func (s *JmSource) Detail(itemID string) (DetailResult, error) {
