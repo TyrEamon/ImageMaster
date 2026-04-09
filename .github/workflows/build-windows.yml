@@ -110,11 +110,17 @@ jobs:
       - name: Package release zip
         shell: pwsh
         run: |
+          $packageRoot = "build/package/ImageMaster-$env:APP_VERSION-windows-amd64"
           $zipPath = "build/ImageMaster-$env:APP_VERSION-windows-amd64.zip"
+          if (Test-Path $packageRoot) {
+            Remove-Item -Recurse -Force $packageRoot
+          }
           if (Test-Path $zipPath) {
             Remove-Item -Force $zipPath
           }
-          Compress-Archive -Path "build/bin/*" -DestinationPath $zipPath
+          New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
+          Copy-Item -Recurse -Force "build/bin/*" $packageRoot
+          Compress-Archive -Path $packageRoot -DestinationPath $zipPath
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
