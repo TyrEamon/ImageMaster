@@ -135,6 +135,10 @@ func (s *MangaDexSource) Search(query string, page int) (SearchResult, error) {
 	}, nil
 }
 
+func (s *MangaDexSource) Detail(itemID string) (DetailResult, error) {
+	return DetailResult{}, fmt.Errorf("MangaDex 详情尚未接入，当前先支持搜索")
+}
+
 func chooseMangaDexTitle(title map[string]string, altTitles []map[string]string) string {
 	for _, key := range []string{"zh-hans", "zh-cn", "zh", "en", "ja-ro", "ja"} {
 		if value := strings.TrimSpace(title[key]); value != "" {

@@ -28,7 +28,49 @@ type SearchResult struct {
 	Items   []SearchItem `json:"items"`
 }
 
+type ChapterItem struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	UpdatedLabel string `json:"updatedLabel"`
+}
+
+type DetailItem struct {
+	ID        string        `json:"id"`
+	Title     string        `json:"title"`
+	Cover     string        `json:"cover"`
+	Summary   string        `json:"summary"`
+	Author    string        `json:"author"`
+	Status    string        `json:"status"`
+	Tags      []string      `json:"tags"`
+	DetailURL string        `json:"detailUrl"`
+	Chapters  []ChapterItem `json:"chapters"`
+}
+
+type DetailResult struct {
+	Source Summary    `json:"source"`
+	Item   DetailItem `json:"item"`
+}
+
+type ImageResult struct {
+	Source       Summary  `json:"source"`
+	ComicTitle   string   `json:"comicTitle"`
+	ChapterTitle string   `json:"chapterTitle"`
+	ChapterURL   string   `json:"chapterUrl"`
+	Images       []string `json:"images"`
+	HasNext      bool     `json:"hasNext"`
+	NextURL      string   `json:"nextUrl"`
+}
+
 type Provider interface {
 	Summary() Summary
 	Search(query string, page int) (SearchResult, error)
+}
+
+type DetailProvider interface {
+	Detail(itemID string) (DetailResult, error)
+}
+
+type ImageProvider interface {
+	Images(chapterID string) (ImageResult, error)
 }

@@ -6,7 +6,7 @@
           <p class="mb-2 text-xs uppercase tracking-[0.3em] text-sky-300/80">Online Sources</p>
           <h1 class="text-2xl font-semibold text-white">在线漫画库</h1>
           <p class="mt-2 text-sm leading-6 text-neutral-400">
-            这是 ImageMaster 在线源系统的第一版样板。当前先做内置源，跑通“选源 -> 搜索”的闭环，
+            这是 ImageMaster 在线源系统的第一版样板。当前先做内置源，跑通“选源 -> 搜索 -> 详情”的闭环，
             后面再把源逐步外置成独立源文件。
           </p>
         </div>
@@ -14,7 +14,7 @@
         <div class="w-full max-w-xl">
           <Input
             v-model="searchKeyword"
-            help="当前版本先支持搜索。后续会继续接详情、章节和下载到本地漫画库。"
+            help="当前版本先支持搜索和包子漫画详情。后续会继续接章节阅读和下载到本地漫画库。"
             placeholder="输入关键字搜索在线漫画源"
             @keydown.enter="runSearch(1)"
           />
@@ -40,7 +40,7 @@
 
       <div class="mt-5 flex flex-wrap gap-3">
         <button
-          class="cursor-pointer rounded-xl border border-sky-500/60 bg-sky-500/10 px-4 py-2 text-sm text-sky-100 transition-colors hover:bg-sky-500/20"
+          class="cursor-pointer rounded-xl border border-sky-500/60 bg-sky-500/10 px-4 py-2 text-sm text-sky-100 transition-colors hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
           :disabled="searching || !selectedSourceId"
           @click="runSearch(1)"
         >
@@ -67,7 +67,7 @@
 
           <button
             v-if="result.hasMore"
-            class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
+            class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
             :disabled="searching"
             @click="runSearch(result.page + 1)"
           >
@@ -112,15 +112,23 @@
               <p class="text-xs text-neutral-400">{{ item.primaryLabel }}</p>
               <p v-if="item.secondaryLabel" class="text-xs text-neutral-500">{{ item.secondaryLabel }}</p>
               <p class="line-clamp-3 text-xs leading-5 text-neutral-400">{{ item.summary }}</p>
-              <a
-                v-if="item.detailUrl"
-                :href="item.detailUrl"
-                target="_blank"
-                rel="noreferrer"
-                class="mt-2 text-xs text-sky-300 hover:text-sky-200"
-              >
-                打开源站页面
-              </a>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <button
+                  class="cursor-pointer rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-xs text-sky-100 transition-colors hover:bg-sky-500/20"
+                  @click="openDetail(item)"
+                >
+                  在软件内查看
+                </button>
+                <a
+                  v-if="item.detailUrl"
+                  :href="item.detailUrl"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="rounded-lg border border-neutral-700 px-3 py-2 text-xs text-neutral-300 transition-colors hover:bg-neutral-800"
+                >
+                  打开源站
+                </a>
+              </div>
             </div>
           </article>
         </div>
@@ -158,6 +166,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Input } from '@/components'
 import { ListSources, SearchSources } from '../../../wailsjs/go/source/API'
 
@@ -189,6 +198,7 @@ interface SearchResult {
   items: SearchItem[]
 }
 
+const router = useRouter()
 const sources = ref<SourceSummary[]>([])
 const selectedSourceId = ref('')
 const searchKeyword = ref('')
@@ -238,11 +248,20 @@ async function runSearch(page: number) {
   try {
     result.value = await SearchSources(selectedSourceId.value, searchKeyword.value.trim(), page)
   } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : '搜索失败，请稍后再试。'
+    errorMessage.value = error instanceof Error ? error.message : '搜索失败，请稍后再试。'
   } finally {
     searching.value = false
   }
+}
+
+function openDetail(item: SearchItem) {
+  router.push({
+    path: '/online/detail',
+    query: {
+      source: result.value.source.id,
+      id: item.id,
+    },
+  })
 }
 
 function clearResult() {

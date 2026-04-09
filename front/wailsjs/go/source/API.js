@@ -5,6 +5,14 @@ export function ListSources() {
   return window['go']['source']['API']['ListSources']()
 }
 
+export function GetSourceDetail(arg1, arg2) {
+  return window['go']['source']['API']['GetSourceDetail'](arg1, arg2)
+}
+
+export function GetSourceImages(arg1, arg2) {
+  return window['go']['source']['API']['GetSourceImages'](arg1, arg2)
+}
+
 export function SearchSources(arg1, arg2, arg3) {
   return window['go']['source']['API']['SearchSources'](arg1, arg2, arg3)
 }
