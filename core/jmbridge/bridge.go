@@ -76,6 +76,7 @@ func Download(ctx context.Context, updater types.TaskUpdater, rawURL, outputDir,
 	}
 
 	cmd := exec.CommandContext(ctx, cmdSpec.Executable, args...)
+	hideConsoleWindow(cmd)
 	cmd.Env = append(os.Environ(),
 		"PYTHONIOENCODING=utf-8",
 		"PYTHONUTF8=1",
