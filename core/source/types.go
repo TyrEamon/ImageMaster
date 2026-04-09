@@ -9,13 +9,15 @@ type Summary struct {
 	Version      string   `json:"version"`
 	BuiltIn      bool     `json:"builtIn"`
 	Capabilities []string `json:"capabilities"`
+	RankingKinds []string `json:"rankingKinds"`
 	Description  string   `json:"description"`
 }
 
 const (
-	CapabilitySearch = "search"
-	CapabilityDetail = "detail"
-	CapabilityRead   = "read"
+	CapabilitySearch  = "search"
+	CapabilityDetail  = "detail"
+	CapabilityRead    = "read"
+	CapabilityRanking = "ranking"
 )
 
 type SearchItem struct {
@@ -35,6 +37,14 @@ type SearchResult struct {
 	HasMore bool         `json:"hasMore"`
 	Total   int          `json:"total"`
 	Items   []SearchItem `json:"items"`
+}
+
+type RankingResult struct {
+	Source Summary      `json:"source"`
+	Kind   string       `json:"kind"`
+	Page   int          `json:"page"`
+	Total  int          `json:"total"`
+	Items  []SearchItem `json:"items"`
 }
 
 type ChapterItem struct {
@@ -98,4 +108,8 @@ type DetailProvider interface {
 
 type ImageProvider interface {
 	Images(chapterID string) (ImageResult, error)
+}
+
+type RankingProvider interface {
+	Ranking(kind string, page int) (RankingResult, error)
 }

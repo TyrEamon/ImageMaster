@@ -24,13 +24,19 @@ type API struct {
 
 func NewAPI(configManager types.ConfigManager) *API {
 	return &API{
-		registry:      NewRegistry(),
+		registry:      NewRegistry(configManager),
 		configManager: configManager,
 	}
 }
 
 func (a *API) SetContext(ctx context.Context) {
 	a.ctx = ctx
+
+	for _, provider := range a.registry.providers {
+		if withContext, ok := provider.(interface{ SetContext(context.Context) }); ok {
+			withContext.SetContext(ctx)
+		}
+	}
 }
 
 func (a *API) ListSources() []Summary {
@@ -47,6 +53,10 @@ func (a *API) GetSourceDetail(sourceID string, itemID string) (DetailResult, err
 
 func (a *API) GetSourceImages(sourceID string, chapterID string) (ImageResult, error) {
 	return a.registry.Images(sourceID, chapterID)
+}
+
+func (a *API) GetSourceRanking(sourceID string, kind string, page int) (RankingResult, error) {
+	return a.registry.Ranking(sourceID, kind, page)
 }
 
 func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (DownloadChapterResult, error) {

@@ -3,19 +3,22 @@ package source
 import (
 	"fmt"
 	"sort"
+
+	"ImageMaster/core/types"
 )
 
 type Registry struct {
 	providers map[string]Provider
 }
 
-func NewRegistry() *Registry {
+func NewRegistry(configManager types.ConfigManager) *Registry {
 	registry := &Registry{
 		providers: map[string]Provider{},
 	}
 
 	registry.Register(NewBaoziSource())
 	registry.Register(NewMangaDexSource())
+	registry.Register(NewJmSource(configManager))
 	return registry
 }
 
@@ -75,4 +78,18 @@ func (r *Registry) Images(sourceID string, chapterID string) (ImageResult, error
 	}
 
 	return imageProvider.Images(chapterID)
+}
+
+func (r *Registry) Ranking(sourceID string, kind string, page int) (RankingResult, error) {
+	provider, ok := r.providers[sourceID]
+	if !ok {
+		return RankingResult{}, fmt.Errorf("source not found: %s", sourceID)
+	}
+
+	rankingProvider, ok := provider.(RankingProvider)
+	if !ok {
+		return RankingResult{}, fmt.Errorf("source %s does not support ranking yet", sourceID)
+	}
+
+	return rankingProvider.Ranking(kind, page)
 }

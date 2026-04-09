@@ -3,5 +3,6 @@
 export function DownloadSourceChapter(arg1: string, arg2: string): Promise<any>;
 export function GetSourceDetail(arg1: string, arg2: string): Promise<any>;
 export function GetSourceImages(arg1: string, arg2: string): Promise<any>;
+export function GetSourceRanking(arg1: string, arg2: string, arg3: number): Promise<any>;
 export function ListSources(): Promise<Array<any>>;
 export function SearchSources(arg1: string, arg2: string, arg3: number): Promise<any>;

@@ -37,6 +37,14 @@ type bridgeEvent struct {
 	Total    int               `json:"total,omitempty"`
 	SavePath string            `json:"savePath,omitempty"`
 	Headers  map[string]string `json:"headers,omitempty"`
+	Payload  json.RawMessage   `json:"payload,omitempty"`
+}
+
+type bridgeRunResult struct {
+	payload     json.RawMessage
+	savePath    string
+	reportedErr string
+	stderr      string
 }
 
 func Supports(rawURL string) bool {
@@ -55,25 +63,120 @@ func HelperAvailable() bool {
 }
 
 func Download(ctx context.Context, updater types.TaskUpdater, rawURL, outputDir, proxy string) (string, error) {
-	cmdSpec, err := resolveBridgeCommand()
+	args := []string{
+		"--target", strings.TrimSpace(rawURL),
+		"--output", outputDir,
+	}
+	if proxy = strings.TrimSpace(proxy); proxy != "" {
+		args = append(args, "--proxy", proxy)
+	}
+
+	result, err := runBridge(ctx, "download", args, updater)
 	if err != nil {
 		return "", err
 	}
 
-	if updater != nil {
-		updater.UpdateTaskName("JM - preparing helper")
-		updater.UpdateTaskStatus(string(types.StatusParsing), "")
+	if result.savePath == "" {
+		return outputDir, nil
 	}
+	return result.savePath, nil
+}
 
-	args := append([]string{}, cmdSpec.Args...)
-	args = append(args,
-		"--action", "download",
-		"--target", strings.TrimSpace(rawURL),
-		"--output", outputDir,
-	)
+func Search(ctx context.Context, query, proxy string, page int) (SearchResult, error) {
+	args := []string{
+		"--query", strings.TrimSpace(query),
+		"--page", fmt.Sprintf("%d", max(page, 1)),
+	}
 	if proxy = strings.TrimSpace(proxy); proxy != "" {
 		args = append(args, "--proxy", proxy)
 	}
+
+	result, err := runBridge(ctx, "search", args, nil)
+	if err != nil {
+		return SearchResult{}, err
+	}
+
+	var payload SearchResult
+	if err := json.Unmarshal(result.payload, &payload); err != nil {
+		return SearchResult{}, fmt.Errorf("failed to decode JM search result: %w", err)
+	}
+	return payload, nil
+}
+
+func Ranking(ctx context.Context, kind, proxy string, page int) (RankingResult, error) {
+	args := []string{
+		"--kind", strings.TrimSpace(kind),
+		"--page", fmt.Sprintf("%d", max(page, 1)),
+	}
+	if proxy = strings.TrimSpace(proxy); proxy != "" {
+		args = append(args, "--proxy", proxy)
+	}
+
+	result, err := runBridge(ctx, "ranking", args, nil)
+	if err != nil {
+		return RankingResult{}, err
+	}
+
+	var payload RankingResult
+	if err := json.Unmarshal(result.payload, &payload); err != nil {
+		return RankingResult{}, fmt.Errorf("failed to decode JM ranking result: %w", err)
+	}
+	return payload, nil
+}
+
+func Detail(ctx context.Context, target, proxy string) (DetailResult, error) {
+	args := []string{
+		"--target", strings.TrimSpace(target),
+	}
+	if proxy = strings.TrimSpace(proxy); proxy != "" {
+		args = append(args, "--proxy", proxy)
+	}
+
+	result, err := runBridge(ctx, "detail", args, nil)
+	if err != nil {
+		return DetailResult{}, err
+	}
+
+	var payload DetailResult
+	if err := json.Unmarshal(result.payload, &payload); err != nil {
+		return DetailResult{}, fmt.Errorf("failed to decode JM detail result: %w", err)
+	}
+	return payload, nil
+}
+
+func Images(ctx context.Context, target, proxy string) (ImageResult, error) {
+	args := []string{
+		"--target", strings.TrimSpace(target),
+	}
+	if proxy = strings.TrimSpace(proxy); proxy != "" {
+		args = append(args, "--proxy", proxy)
+	}
+
+	result, err := runBridge(ctx, "images", args, nil)
+	if err != nil {
+		return ImageResult{}, err
+	}
+
+	var payload ImageResult
+	if err := json.Unmarshal(result.payload, &payload); err != nil {
+		return ImageResult{}, fmt.Errorf("failed to decode JM image result: %w", err)
+	}
+	return payload, nil
+}
+
+func runBridge(ctx context.Context, action string, extraArgs []string, updater types.TaskUpdater) (bridgeRunResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	cmdSpec, err := resolveBridgeCommand()
+	if err != nil {
+		return bridgeRunResult{}, err
+	}
+
+	args := append([]string{}, cmdSpec.Args...)
+	args = append(args, "--action", action)
+	args = append(args, extraArgs...)
 
 	cmd := exec.CommandContext(ctx, cmdSpec.Executable, args...)
 	hideConsoleWindow(cmd)
@@ -81,25 +184,23 @@ func Download(ctx context.Context, updater types.TaskUpdater, rawURL, outputDir,
 		"PYTHONIOENCODING=utf-8",
 		"PYTHONUTF8=1",
 	)
+
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", fmt.Errorf("failed to read JM helper stdout: %w", err)
+		return bridgeRunResult{}, fmt.Errorf("failed to read JM helper stdout: %w", err)
 	}
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
 	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("failed to start JM helper (%s): %w", cmdSpec.Source, err)
+		return bridgeRunResult{}, fmt.Errorf("failed to start JM helper (%s): %w", cmdSpec.Source, err)
 	}
 
 	scanner := bufio.NewScanner(stdoutPipe)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
-	var (
-		savePath    string
-		reportedErr string
-	)
+	result := bridgeRunResult{}
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -119,19 +220,18 @@ func Download(ctx context.Context, updater types.TaskUpdater, rawURL, outputDir,
 				updater.UpdateTaskName(event.Name)
 			}
 		case "status":
-			if updater == nil {
-				continue
-			}
-			if event.Name != "" {
-				updater.UpdateTaskName(event.Name)
-			} else if event.Message != "" {
-				updater.UpdateTaskName("JM - " + event.Message)
-			}
-			switch strings.ToLower(event.Phase) {
-			case "download", "downloading":
-				updater.UpdateTaskStatus(string(types.StatusDownloading), "")
-			default:
-				updater.UpdateTaskStatus(string(types.StatusParsing), "")
+			if updater != nil {
+				if event.Name != "" {
+					updater.UpdateTaskName(event.Name)
+				} else if event.Message != "" {
+					updater.UpdateTaskName("JM - " + event.Message)
+				}
+				switch strings.ToLower(event.Phase) {
+				case "download", "downloading":
+					updater.UpdateTaskStatus(string(types.StatusDownloading), "")
+				default:
+					updater.UpdateTaskStatus(string(types.StatusParsing), "")
+				}
 			}
 		case "progress":
 			if updater != nil {
@@ -139,18 +239,21 @@ func Download(ctx context.Context, updater types.TaskUpdater, rawURL, outputDir,
 				updater.UpdateTaskProgress(event.Current, event.Total)
 			}
 		case "result":
+			if len(event.Payload) > 0 {
+				result.payload = event.Payload
+			}
+			if event.SavePath != "" {
+				result.savePath = event.SavePath
+				if updater != nil {
+					updater.UpdateTaskField("savePath", result.savePath)
+				}
+			}
 			if event.Name != "" && updater != nil {
 				updater.UpdateTaskName(event.Name)
 			}
-			if event.SavePath != "" {
-				savePath = event.SavePath
-				if updater != nil {
-					updater.UpdateTaskField("savePath", savePath)
-				}
-			}
 		case "error":
 			if event.Message != "" {
-				reportedErr = event.Message
+				result.reportedErr = event.Message
 			}
 		default:
 			logger.Debug("ignored JM helper event: %s", line)
@@ -158,25 +261,22 @@ func Download(ctx context.Context, updater types.TaskUpdater, rawURL, outputDir,
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("failed to read JM helper output: %w", err)
+		return bridgeRunResult{}, fmt.Errorf("failed to read JM helper output: %w", err)
 	}
 
+	result.stderr = strings.TrimSpace(stderr.String())
 	if err := cmd.Wait(); err != nil {
-		message := strings.TrimSpace(reportedErr)
+		message := strings.TrimSpace(result.reportedErr)
 		if message == "" {
-			message = strings.TrimSpace(stderr.String())
+			message = result.stderr
 		}
 		if message == "" {
 			message = err.Error()
 		}
-		return "", fmt.Errorf("JM helper failed: %s", message)
+		return bridgeRunResult{}, fmt.Errorf("JM helper failed: %s", message)
 	}
 
-	if savePath == "" {
-		savePath = outputDir
-	}
-
-	return savePath, nil
+	return result, nil
 }
 
 func resolveBridgeCommand() (*bridgeCommand, error) {
@@ -246,6 +346,11 @@ func pythonCanImportJM(executable string, baseArgs []string) bool {
 	args := append([]string{}, baseArgs...)
 	args = append(args, "-c", "import jmcomic")
 	cmd := exec.Command(executable, args...)
+	hideConsoleWindow(cmd)
+	cmd.Env = append(os.Environ(),
+		"PYTHONIOENCODING=utf-8",
+		"PYTHONUTF8=1",
+	)
 	return cmd.Run() == nil
 }
 
@@ -284,4 +389,11 @@ func hasCommand(name string) bool {
 func isFile(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
