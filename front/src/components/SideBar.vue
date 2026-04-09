@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { AlignJustify, Archive, Download, Home, Settings } from "lucide-vue-next";
+import { AlignJustify, Archive, Download, Globe, Home, Settings } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -57,6 +57,12 @@ let menuList = computed(() => [
         label: "Download",
         path: "/download",
         active: router.currentRoute.value.path === "/download",
+    },
+    {
+        icon: Globe,
+        label: "Online",
+        path: "/online",
+        active: router.currentRoute.value.path === "/online",
     },
     {
         icon: Archive,

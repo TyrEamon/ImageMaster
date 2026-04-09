@@ -12,6 +12,7 @@ import (
 	"ImageMaster/core/library"
 	appLogger "ImageMaster/core/logger"
 	"ImageMaster/core/meta"
+	sourceapi "ImageMaster/core/source"
 
 	"github.com/wailsapp/wails/v2"
 	wlogger "github.com/wailsapp/wails/v2/pkg/logger"
@@ -36,25 +37,16 @@ func main() {
 		WriteStdout: true,
 	})
 
-	// 创建历史记录API
 	historyAPI := history.NewAPI(AppName)
-
-	// 获取配置管理器
 	configAPI := config.NewAPI(AppName)
-
-	// 创建图书馆API
 	libraryAPI := library.NewAPI(configAPI)
-
-	// 创建解压管理API
 	extractAPI := archiveapi.NewAPI(configAPI)
 	metaAPI := meta.NewAPI(AppVersion, BuildCommit, BuildTime)
-
-	// 创建爬虫API（构造注入历史存储）
+	sourceAPI := sourceapi.NewAPI()
 	crawlerAPI := crawlerapi.NewCrawlerAPI(configAPI, historyAPI.GetStore())
 
-	// 创建应用
 	err := wails.Run(&options.App{
-		Title:  "漫画查看器",
+		Title:  "ImageMaster",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{
@@ -74,6 +66,7 @@ func main() {
 			configAPI,
 			extractAPI,
 			metaAPI,
+			sourceAPI,
 			appLogger.NewAPI(),
 		},
 		LogLevel:                 wlogger.ERROR,
