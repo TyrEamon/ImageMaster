@@ -10,6 +10,23 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
+def configure_stdio():
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None:
+            continue
+
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
+configure_stdio()
+
+
 def emit(event):
     print(json.dumps(event, ensure_ascii=False), flush=True)
 
