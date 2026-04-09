@@ -1,6 +1,7 @@
 package source
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -194,6 +195,24 @@ func (s *ScriptSource) buildContext(vm *otto.Otto) (*otto.Object, error) {
 		return value
 	})
 
+	_ = ctxObject.Set("postJSON", func(call otto.FunctionCall) otto.Value {
+		result, callErr := s.requestJSONWithBody(
+			http.MethodPost,
+			call.Argument(0).String(),
+			exportBodyValue(call.Argument(1)),
+			exportHeaderMap(call.Argument(2)),
+		)
+		if callErr != nil {
+			panic(vm.MakeCustomError("SourceRequestError", callErr.Error()))
+		}
+
+		value, valueErr := vm.ToValue(result)
+		if valueErr != nil {
+			panic(vm.MakeCustomError("SourceRuntimeError", valueErr.Error()))
+		}
+		return value
+	})
+
 	_ = ctxObject.Set("urlQuery", func(call otto.FunctionCall) otto.Value {
 		value, _ := vm.ToValue(url.QueryEscape(call.Argument(0).String()))
 		return value
@@ -226,8 +245,35 @@ func (s *ScriptSource) requestJSON(rawURL string, headers map[string]string) (an
 	return result, nil
 }
 
+func (s *ScriptSource) requestJSONWithBody(method string, rawURL string, body any, headers map[string]string) (any, error) {
+	text, err := s.requestTextWithBody(method, rawURL, body, headers)
+	if err != nil {
+		return nil, err
+	}
+
+	var result any
+	if err := json.Unmarshal([]byte(text), &result); err != nil {
+		return nil, fmt.Errorf("decode json from %s: %w", rawURL, err)
+	}
+
+	return result, nil
+}
+
 func (s *ScriptSource) requestText(rawURL string, headers map[string]string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, strings.TrimSpace(rawURL), nil)
+	return s.requestTextWithBody(http.MethodGet, rawURL, nil, headers)
+}
+
+func (s *ScriptSource) requestTextWithBody(method string, rawURL string, body any, headers map[string]string) (string, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		payload, err := json.Marshal(body)
+		if err != nil {
+			return "", fmt.Errorf("encode request body for %s: %w", rawURL, err)
+		}
+		bodyReader = bytes.NewReader(payload)
+	}
+
+	req, err := http.NewRequest(strings.ToUpper(strings.TrimSpace(method)), strings.TrimSpace(rawURL), bodyReader)
 	if err != nil {
 		return "", err
 	}
@@ -235,6 +281,9 @@ func (s *ScriptSource) requestText(rawURL string, headers map[string]string) (st
 	req.Header.Set("User-Agent", "ImageMaster/0.2")
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	for key, value := range headers {
 		trimmedKey := strings.TrimSpace(key)
 		trimmedValue := strings.TrimSpace(value)
@@ -300,6 +349,19 @@ func exportHeaderMap(value otto.Value) map[string]string {
 	}
 
 	return nil
+}
+
+func exportBodyValue(value otto.Value) any {
+	if !value.IsDefined() || value.IsNull() {
+		return nil
+	}
+
+	exported, err := value.Export()
+	if err != nil {
+		return nil
+	}
+
+	return exported
 }
 
 func resolveURL(baseRaw string, targetRaw string) string {
