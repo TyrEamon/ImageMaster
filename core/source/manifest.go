@@ -1,6 +1,7 @@
 package source
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -131,6 +132,7 @@ func readManifestPathsFromIndex(sourceDir string, indexPath string) []string {
 	if err != nil {
 		return nil
 	}
+	data = normalizeJSONBytes(data)
 
 	var index manifestIndex
 	if err := json.Unmarshal(data, &index); err != nil {
@@ -176,6 +178,7 @@ func readManifest(path string) (SourceManifest, bool) {
 	if err != nil {
 		return SourceManifest{}, false
 	}
+	data = normalizeJSONBytes(data)
 
 	var manifest SourceManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
@@ -209,6 +212,10 @@ func readManifest(path string) (SourceManifest, bool) {
 	}
 
 	return manifest, true
+}
+
+func normalizeJSONBytes(data []byte) []byte {
+	return bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 }
 
 func isFile(path string) bool {
