@@ -31,6 +31,11 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
       - name: Setup pnpm via Corepack
         run: |
           corepack enable
@@ -72,11 +77,29 @@ jobs:
             Rename-Item -Path "build/bin/ImageMaster.exe" -NewName "ImageMaster-$env:APP_VERSION.exe"
           }
 
+      - name: Build JM runtime helper
+        shell: pwsh
+        run: |
+          ./scripts/build_jm_runtime.ps1 -PythonExe py -PythonVersionArg -3.11
+          New-Item -ItemType Directory -Force -Path "build/bin/runtime" | Out-Null
+          Copy-Item -Force "runtime/imagemaster-jm-runtime.exe" "build/bin/runtime/imagemaster-jm-runtime.exe"
+
+      - name: Package release zip
+        shell: pwsh
+        run: |
+          $zipPath = "build/ImageMaster-$env:APP_VERSION-windows-amd64.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item -Force $zipPath
+          }
+          Compress-Archive -Path "build/bin/*" -DestinationPath $zipPath
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
         with:
           name: ImageMaster-windows-amd64-${{ steps.version.outputs.app_version }}
-          path: build/bin/**
+          path: |
+            build/bin/**
+            build/ImageMaster-${{ steps.version.outputs.app_version }}-windows-amd64.zip
           if-no-files-found: error
 
       - name: Publish GitHub Release assets
@@ -84,5 +107,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/bin/*
+            build/ImageMaster-${{ steps.version.outputs.app_version }}-windows-amd64.zip
           generate_release_notes: true

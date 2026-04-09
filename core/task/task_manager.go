@@ -157,6 +157,16 @@ func (tm *TaskManager) executeTask(taskID string, cancelChan chan struct{}) {
 		task.UpdatedAt = time.Now()
 	})
 
+	// 设置输出目录
+	outputDir := "downloads"
+	if tm.configManager != nil && tm.configManager.GetOutputDir() != "" {
+		outputDir = tm.configManager.GetOutputDir()
+	}
+
+	if tm.executeJMTask(ctx, taskID, task, outputDir) {
+		return
+	}
+
 	// 创建下载器
 	downloader := tm.createDownloaderForTask(taskID)
 	// 传递上下文到下载器
@@ -188,14 +198,6 @@ func (tm *TaskManager) executeTask(taskID string, cancelChan chan struct{}) {
 	// 将上下文传给具体爬虫（若实现）
 	if withCtx, ok := crawlerInstance.(interface{ SetContext(context.Context) }); ok {
 		withCtx.SetContext(ctx)
-	}
-
-	// 设置输出目录
-	var outputDir string
-	if tm.configManager != nil {
-		outputDir = tm.configManager.GetOutputDir()
-	} else {
-		outputDir = "downloads"
 	}
 
 	// 执行爬取
