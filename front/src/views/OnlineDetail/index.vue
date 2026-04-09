@@ -4,7 +4,7 @@
       <div class="mb-6 flex flex-wrap items-center gap-3">
         <button
           class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
-          @click="router.back()"
+          @click="goBackToSource"
         >
           返回
         </button>
@@ -266,6 +266,13 @@ function openReader(chapter: ChapterItem) {
       source: detail.value.source.id,
       chapter: chapter.id,
     },
+  })
+}
+
+function goBackToSource() {
+  router.push({
+    path: '/online',
+    query: sourceId.value ? { source: sourceId.value } : {},
   })
 }
 </script>

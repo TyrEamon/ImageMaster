@@ -97,6 +97,15 @@ type DownloadChapterResult struct {
 	FileCount    int     `json:"fileCount"`
 }
 
+type ChapterDownloadStatusResult struct {
+	Source       Summary `json:"source"`
+	ComicTitle   string  `json:"comicTitle"`
+	ChapterTitle string  `json:"chapterTitle"`
+	SaveDir      string  `json:"saveDir"`
+	FileCount    int     `json:"fileCount"`
+	Downloaded   bool    `json:"downloaded"`
+}
+
 type Provider interface {
 	Summary() Summary
 	Search(query string, page int) (SearchResult, error)

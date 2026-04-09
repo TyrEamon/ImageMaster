@@ -9,6 +9,10 @@ export function GetSourceDetail(arg1, arg2) {
   return window['go']['source']['API']['GetSourceDetail'](arg1, arg2)
 }
 
+export function GetSourceChapterDownloadStatus(arg1, arg2) {
+  return window['go']['source']['API']['GetSourceChapterDownloadStatus'](arg1, arg2)
+}
+
 export function GetSourceImages(arg1, arg2) {
   return window['go']['source']['API']['GetSourceImages'](arg1, arg2)
 }

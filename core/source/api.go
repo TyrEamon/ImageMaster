@@ -68,6 +68,37 @@ func (a *API) GetSourceRanking(sourceID string, kind string, page int) (RankingR
 	return a.registry.Ranking(sourceID, kind, page)
 }
 
+func (a *API) GetSourceChapterDownloadStatus(sourceID string, chapterID string) (ChapterDownloadStatusResult, error) {
+	rootDir := a.resolveDownloadRootDir()
+	if rootDir == "" {
+		return ChapterDownloadStatusResult{}, nil
+	}
+
+	imageResult, err := a.registry.Images(sourceID, chapterID)
+	if err != nil {
+		return ChapterDownloadStatusResult{}, err
+	}
+
+	saveDir := buildChapterSaveDir(rootDir, imageResult, sourceID)
+	fileCount, err := countFilesInDir(saveDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fileCount = 0
+		} else {
+			return ChapterDownloadStatusResult{}, err
+		}
+	}
+
+	return ChapterDownloadStatusResult{
+		Source:       imageResult.Source,
+		ComicTitle:   imageResult.ComicTitle,
+		ChapterTitle: imageResult.ChapterTitle,
+		SaveDir:      saveDir,
+		FileCount:    fileCount,
+		Downloaded:   fileCount > 0,
+	}, nil
+}
+
 func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (DownloadChapterResult, error) {
 	startTime := time.Now()
 	if a.configManager == nil {
@@ -76,10 +107,7 @@ func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (Download
 		return DownloadChapterResult{}, err
 	}
 
-	rootDir := strings.TrimSpace(a.configManager.GetActiveLibrary())
-	if rootDir == "" {
-		rootDir = strings.TrimSpace(a.configManager.GetOutputDir())
-	}
+	rootDir := a.resolveDownloadRootDir()
 	if rootDir == "" {
 		err := fmt.Errorf("no active library or output directory is configured")
 		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, DownloadChapterResult{}, err)
@@ -116,9 +144,7 @@ func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (Download
 		return DownloadChapterResult{}, err
 	}
 
-	comicDir := sanitizeSegment(fallbackString(imageResult.ComicTitle, sourceID))
-	chapterDir := sanitizeSegment(fallbackString(imageResult.ChapterTitle, "chapter"))
-	saveDir := utils.NormalizePath(filepath.Join(rootDir, comicDir, chapterDir))
+	saveDir := buildChapterSaveDir(rootDir, imageResult, sourceID)
 
 	jobs := make([]download.DownloadJob, 0, len(entries))
 	for index, entry := range entries {
@@ -266,6 +292,25 @@ func sanitizeSegment(value string) string {
 	}
 
 	return cleaned
+}
+
+func (a *API) resolveDownloadRootDir() string {
+	if a.configManager == nil {
+		return ""
+	}
+
+	rootDir := strings.TrimSpace(a.configManager.GetActiveLibrary())
+	if rootDir == "" {
+		rootDir = strings.TrimSpace(a.configManager.GetOutputDir())
+	}
+
+	return utils.NormalizePath(rootDir)
+}
+
+func buildChapterSaveDir(rootDir string, imageResult ImageResult, sourceID string) string {
+	comicDir := sanitizeSegment(fallbackString(imageResult.ComicTitle, sourceID))
+	chapterDir := sanitizeSegment(fallbackString(imageResult.ChapterTitle, "chapter"))
+	return utils.NormalizePath(filepath.Join(rootDir, comicDir, chapterDir))
 }
 
 func cloneHeaders(headers map[string]string) map[string]string {

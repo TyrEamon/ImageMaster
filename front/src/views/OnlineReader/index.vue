@@ -17,14 +17,21 @@
           </div>
         </div>
 
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-col items-end gap-2">
           <button
             class="cursor-pointer rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             :disabled="loading || downloading || resolvedImages.length === 0"
             @click="downloadCurrentChapter"
           >
-            {{ downloading ? '下载中...' : '下载到本地漫画库' }}
+            {{ downloadButtonLabel }}
           </button>
+
+          <div v-if="chapterDownloadStatus?.downloaded" class="text-xs text-emerald-300/80">
+            已保存 {{ chapterDownloadStatus.fileCount }} 个文件到本地漫画库
+          </div>
+          <div v-else-if="downloadStatusLoading" class="text-xs text-neutral-500">
+            正在检查本地下载状态...
+          </div>
         </div>
       </div>
     </header>
@@ -89,7 +96,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { GetImageDataUrl, LoadActiveLibrary } from '../../../wailsjs/go/library/API'
-import { DownloadSourceChapter, GetSourceImages } from '../../../wailsjs/go/source/API'
+import {
+  DownloadSourceChapter,
+  GetSourceChapterDownloadStatus,
+  GetSourceImages,
+} from '../../../wailsjs/go/source/API'
 
 interface SourceSummary {
   id: string
@@ -118,6 +129,15 @@ interface DownloadChapterResult {
   fileCount: number
 }
 
+interface ChapterDownloadStatusResult {
+  source: SourceSummary
+  comicTitle: string
+  chapterTitle: string
+  saveDir: string
+  fileCount: number
+  downloaded: boolean
+}
+
 function createEmptyImageResult(): ImageResult {
   return {
     source: {
@@ -141,12 +161,27 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const downloading = ref(false)
+const downloadStatusLoading = ref(false)
 const errorMessage = ref('')
 const imageResult = ref<ImageResult>(createEmptyImageResult())
 const resolvedImages = ref<string[]>([])
+const chapterDownloadStatus = ref<ChapterDownloadStatusResult | null>(null)
 
 const sourceId = computed(() => String(route.query.source ?? '').trim())
 const chapterId = computed(() => String(route.query.chapter ?? '').trim())
+
+const downloadButtonLabel = computed(() => {
+  if (downloading.value) {
+    return '下载中...'
+  }
+  if (downloadStatusLoading.value) {
+    return '检查下载状态...'
+  }
+  if (chapterDownloadStatus.value?.downloaded) {
+    return '已下载，重新下载'
+  }
+  return '下载到本地漫画库'
+})
 
 onMounted(() => {
   void loadImages()
@@ -168,14 +203,33 @@ async function loadImages() {
   loading.value = true
   errorMessage.value = ''
   resolvedImages.value = []
+  chapterDownloadStatus.value = null
 
   try {
     imageResult.value = await GetSourceImages(sourceId.value, chapterId.value)
     resolvedImages.value = await resolveImageUrls(imageResult.value.images)
+    await refreshDownloadStatus()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '加载图片失败，请稍后再试。'
   } finally {
     loading.value = false
+  }
+}
+
+async function refreshDownloadStatus() {
+  if (!sourceId.value || !chapterId.value) {
+    chapterDownloadStatus.value = null
+    return
+  }
+
+  downloadStatusLoading.value = true
+  try {
+    chapterDownloadStatus.value = await GetSourceChapterDownloadStatus(sourceId.value, chapterId.value)
+  } catch (error) {
+    console.error('检查在线章节下载状态失败', error)
+    chapterDownloadStatus.value = null
+  } finally {
+    downloadStatusLoading.value = false
   }
 }
 
@@ -226,6 +280,7 @@ async function downloadCurrentChapter() {
       chapterId.value,
     )) as DownloadChapterResult
     await LoadActiveLibrary()
+    await refreshDownloadStatus()
     toast.success('章节已下载到本地漫画库', {
       description: `${result.chapterTitle} · ${result.fileCount} 个文件`,
     })
