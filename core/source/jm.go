@@ -68,6 +68,10 @@ func (s *JmSource) Ranking(kind string, page int) (RankingResult, error) {
 	}
 
 	if cached, fresh, ok := s.loadRankingCache(normalizedKind, page); ok && fresh && !s.shouldRefreshRankingCache(cached) {
+		if enrichedItems, changed := s.enrichRankingItemsFromDetailCache(cached.Items); changed {
+			cached.Items = enrichedItems
+			_ = s.saveRankingCache(normalizedKind, page, cached)
+		}
 		return cached, nil
 	}
 
@@ -85,6 +89,9 @@ func (s *JmSource) Ranking(kind string, page int) (RankingResult, error) {
 		Page:   result.Page,
 		Total:  result.Total,
 		Items:  s.mapItems(result.Items),
+	}
+	if enrichedItems, changed := s.enrichRankingItemsFromDetailCache(mapped.Items); changed {
+		mapped.Items = enrichedItems
 	}
 	_ = s.saveRankingCache(normalizedKind, page, mapped)
 	return mapped, nil

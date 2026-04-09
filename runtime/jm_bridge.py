@@ -324,7 +324,7 @@ def normalize_search_page(page, client=None, enrich_cover_limit=0):
     return items
 
 
-def normalize_album_detail(album):
+def normalize_album_detail(album, client=None):
     props = get_properties(album)
     title = str(props.get("title") or safe_attr(album, "title", "name", default="Untitled")).strip()
     author = str(props.get("author") or safe_attr(album, "author", default="Unknown")).strip()
@@ -336,6 +336,8 @@ def normalize_album_detail(album):
     ).strip()
     album_id = str(props.get("album_id") or safe_attr(album, "album_id", "id", default="")).strip()
     cover = extract_cover_url(album, props)
+    if not cover:
+        cover = ensure_album_cover(client, album_id, cover)
 
     tags = []
     for key in ("tag_list", "tags", "works", "actors"):
@@ -596,7 +598,7 @@ def run_detail(target, proxy_url):
     if target_type != "album":
         return fail("detail currently expects a JM album id or album url")
     album = client.get_album_detail(target_id)
-    emit({"type": "result", "payload": normalize_album_detail(album)})
+    emit({"type": "result", "payload": normalize_album_detail(album, client=client)})
     return 0
 
 

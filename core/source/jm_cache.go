@@ -181,6 +181,37 @@ func (s *JmSource) shouldRefreshRankingCache(result RankingResult) bool {
 	return false
 }
 
+func (s *JmSource) enrichRankingItemsFromDetailCache(items []SearchItem) ([]SearchItem, bool) {
+	if len(items) == 0 {
+		return items, false
+	}
+
+	changed := false
+	enriched := make([]SearchItem, len(items))
+	copy(enriched, items)
+
+	for index := range enriched {
+		if strings.TrimSpace(enriched[index].Cover) != "" {
+			continue
+		}
+
+		detail, _, ok := s.loadDetailCache(enriched[index].ID)
+		if !ok {
+			continue
+		}
+
+		cover := strings.TrimSpace(detail.Item.Cover)
+		if cover == "" {
+			continue
+		}
+
+		enriched[index].Cover = cover
+		changed = true
+	}
+
+	return enriched, changed
+}
+
 func (s *JmSource) cleanupOldCacheFiles(cacheDir string, maxAge time.Duration) {
 	entries, err := os.ReadDir(cacheDir)
 	if err != nil {
