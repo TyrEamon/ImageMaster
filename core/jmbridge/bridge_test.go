@@ -22,3 +22,16 @@ func TestSupports(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRuntimeInfoDefaults(t *testing.T) {
+	info := GetRuntimeInfo()
+	if info.Name == "" {
+		t.Fatal("expected runtime name")
+	}
+	if info.Engine == "" {
+		t.Fatal("expected runtime engine")
+	}
+	if info.Upstream == "" {
+		t.Fatal("expected runtime upstream")
+	}
+}

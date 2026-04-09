@@ -4,3 +4,7 @@
 export function GetVersionInfo() {
   return window['go']['meta']['API']['GetVersionInfo']();
 }
+
+export function GetJmRuntimeInfo() {
+  return window['go']['meta']['API']['GetJmRuntimeInfo']();
+}

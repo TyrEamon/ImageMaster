@@ -1,6 +1,10 @@
 package meta
 
-import "strings"
+import (
+	"strings"
+
+	"ImageMaster/core/jmbridge"
+)
 
 type VersionInfo struct {
 	Version    string `json:"version"`
@@ -8,6 +12,18 @@ type VersionInfo struct {
 	Commit     string `json:"commit"`
 	BuildTime  string `json:"buildTime"`
 	IsDevBuild bool   `json:"isDevBuild"`
+}
+
+type JmRuntimeInfo struct {
+	Name         string `json:"name"`
+	Version      string `json:"version"`
+	Engine       string `json:"engine"`
+	Upstream     string `json:"upstream"`
+	BuildTime    string `json:"buildTime"`
+	ManifestPath string `json:"manifestPath"`
+	HelperPath   string `json:"helperPath"`
+	Available    bool   `json:"available"`
+	Source       string `json:"source"`
 }
 
 type API struct {
@@ -46,5 +62,26 @@ func (a *API) GetVersionInfo() VersionInfo {
 		Commit:     commit,
 		BuildTime:  a.buildTime,
 		IsDevBuild: strings.Contains(strings.ToLower(version), "dev"),
+	}
+}
+
+func (a *API) GetJmRuntimeInfo() JmRuntimeInfo {
+	info := jmbridge.GetRuntimeInfo()
+
+	version := strings.TrimSpace(info.Version)
+	if version == "" {
+		version = "unversioned"
+	}
+
+	return JmRuntimeInfo{
+		Name:         info.Name,
+		Version:      version,
+		Engine:       info.Engine,
+		Upstream:     info.Upstream,
+		BuildTime:    info.BuildTime,
+		ManifestPath: info.ManifestPath,
+		HelperPath:   info.HelperPath,
+		Available:    info.Available,
+		Source:       info.Source,
 	}
 }

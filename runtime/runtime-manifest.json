@@ -1,0 +1,7 @@
+{
+  "name": "JM Runtime",
+  "version": "0.1.0-dev",
+  "engine": "jmcomic",
+  "upstream": "hect0x7/JMComic-Crawler-Python",
+  "buildTime": ""
+}

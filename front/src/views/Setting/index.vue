@@ -150,6 +150,44 @@
         </div>
       </div>
     </div>
+
+    <div class="flex flex-col gap-4">
+      <div class="text-xl">JM Runtime</div>
+      <div class="rounded-2xl border border-neutral-300/20 bg-neutral-900/40 p-4">
+        <div class="flex flex-col gap-2 text-neutral-300/90">
+          <div>
+            Status:
+            <span :class="jmRuntimeInfo?.available ? 'text-emerald-300' : 'text-amber-300'">
+              {{ jmRuntimeInfo?.available ? 'Ready' : 'Not Ready' }}
+            </span>
+          </div>
+          <div>Name: <span class="select-all">{{ jmRuntimeInfo?.name || '-' }}</span></div>
+          <div>Version: <span class="select-all">{{ jmRuntimeInfo?.version || '-' }}</span></div>
+          <div>Engine: <span class="select-all">{{ jmRuntimeInfo?.engine || '-' }}</span></div>
+          <div>Source: <span class="select-all">{{ jmRuntimeInfo?.source || '-' }}</span></div>
+          <div>Helper Path: <span class="select-all">{{ jmRuntimeInfo?.helperPath || '-' }}</span></div>
+          <div>Build Time: <span class="select-all">{{ jmRuntimeInfo?.buildTime || '-' }}</span></div>
+        </div>
+        <div class="mt-3 text-xs leading-6 text-neutral-400">
+          JM runtime is bundled as a helper under <span class="text-neutral-200">runtime/</span>.
+          If this area shows <span class="text-neutral-200">Not Ready</span>, JM links will fall back to the legacy crawler.
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button
+            class="rounded-2xl border border-neutral-300/50 px-4 py-2"
+            @click="copyText(jmRuntimeInfo?.helperPath)"
+          >
+            Copy Helper Path
+          </button>
+          <button
+            class="rounded-2xl border border-neutral-300/50 px-4 py-2"
+            @click="copyText(jmRuntimeInfo ? `${jmRuntimeInfo.name} | ${jmRuntimeInfo.version} | ${jmRuntimeInfo.source || 'unknown'}` : '')"
+          >
+            Copy Runtime Info
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -172,7 +210,7 @@ import {
 } from '../../../wailsjs/go/config/API'
 import { LoadLibrary } from '../../../wailsjs/go/library/API'
 import { GetLogInfo } from '../../../wailsjs/go/logger/API'
-import { GetVersionInfo } from '../../../wailsjs/go/meta/API'
+import { GetJmRuntimeInfo, GetVersionInfo } from '../../../wailsjs/go/meta/API'
 
 type LinkTip = {
   name: string
@@ -188,6 +226,18 @@ type VersionInfo = {
   commit: string
   buildTime: string
   isDevBuild: boolean
+}
+
+type JmRuntimeInfo = {
+  name: string
+  version: string
+  engine: string
+  upstream: string
+  buildTime: string
+  manifestPath: string
+  helperPath: string
+  available: boolean
+  source: string
 }
 
 const linkTips: LinkTip[] = [
@@ -263,6 +313,7 @@ const libraries = ref<string[]>([])
 const activeLibrary = ref('')
 const logInfo = ref<any>(null)
 const versionInfo = ref<VersionInfo | null>(null)
+const jmRuntimeInfo = ref<JmRuntimeInfo | null>(null)
 
 const saveProxy = debounce((e: Event) => {
   SetProxy((e.target as HTMLInputElement).value).then(() => {
@@ -293,6 +344,12 @@ async function refreshConfig() {
     versionInfo.value = (await GetVersionInfo()) as VersionInfo
   } catch {
     versionInfo.value = null
+  }
+
+  try {
+    jmRuntimeInfo.value = (await GetJmRuntimeInfo()) as JmRuntimeInfo
+  } catch {
+    jmRuntimeInfo.value = null
   }
 }
 

@@ -80,9 +80,10 @@ jobs:
       - name: Build JM runtime helper
         shell: pwsh
         run: |
-          ./scripts/build_jm_runtime.ps1 -PythonExe py -PythonVersionArg -3.11
+          ./scripts/build_jm_runtime.ps1 -PythonExe py -PythonVersionArg -3.11 -RuntimeVersion $env:APP_VERSION -BuildTime $env:BUILD_TIME
           New-Item -ItemType Directory -Force -Path "build/bin/runtime" | Out-Null
           Copy-Item -Force "runtime/imagemaster-jm-runtime.exe" "build/bin/runtime/imagemaster-jm-runtime.exe"
+          Copy-Item -Force "runtime/runtime-manifest.json" "build/bin/runtime/runtime-manifest.json"
 
       - name: Package release zip
         shell: pwsh
