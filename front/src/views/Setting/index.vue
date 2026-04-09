@@ -78,24 +78,28 @@
             />
           </div>
 
-          <Input
-            v-model="jmCacheRetentionHours"
-            type="number"
-            min="1"
-            help="保留时长（小时）"
-            placeholder="24"
-            @blur="saveJmCacheRetentionHours"
-          />
+          <div class="flex flex-col gap-2">
+            <label class="text-xs text-neutral-400">保留时长（小时）</label>
+            <Input
+              v-model="jmCacheRetentionHours"
+              type="number"
+              min="1"
+              placeholder="24"
+              @blur="saveJmCacheRetentionHours"
+            />
+          </div>
 
-          <Input
-            v-model="jmCacheSizeLimitMB"
-            type="number"
-            min="128"
-            step="128"
-            help="总缓存上限（MB）"
-            placeholder="2048"
-            @blur="saveJmCacheSizeLimitMB"
-          />
+          <div class="flex flex-col gap-2">
+            <label class="text-xs text-neutral-400">总缓存上限（MB）</label>
+            <Input
+              v-model="jmCacheSizeLimitMB"
+              type="number"
+              min="128"
+              step="128"
+              placeholder="2048"
+              @blur="saveJmCacheSizeLimitMB"
+            />
+          </div>
         </div>
 
         <div class="mt-4 text-xs leading-6 text-neutral-400">

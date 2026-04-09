@@ -42,7 +42,7 @@ func main() {
 	libraryAPI := library.NewAPI(configAPI)
 	extractAPI := archiveapi.NewAPI(configAPI)
 	metaAPI := meta.NewAPI(AppVersion, BuildCommit, BuildTime)
-	sourceAPI := sourceapi.NewAPI(configAPI)
+	sourceAPI := sourceapi.NewAPI(configAPI, historyAPI.GetStore())
 	crawlerAPI := crawlerapi.NewCrawlerAPI(configAPI, historyAPI.GetStore())
 
 	err := wails.Run(&options.App{

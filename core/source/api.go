@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"ImageMaster/core/download"
 	"ImageMaster/core/jmbridge"
 	"ImageMaster/core/types"
+	"ImageMaster/core/types/dto"
 	"ImageMaster/core/utils"
 )
 
@@ -21,13 +23,15 @@ var invalidSegmentChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)
 type API struct {
 	registry      *Registry
 	configManager types.ConfigManager
+	historyStore  types.HistoryStore
 	ctx           context.Context
 }
 
-func NewAPI(configManager types.ConfigManager) *API {
+func NewAPI(configManager types.ConfigManager, historyStore types.HistoryStore) *API {
 	return &API{
 		registry:      NewRegistry(configManager),
 		configManager: configManager,
+		historyStore:  historyStore,
 	}
 }
 
@@ -65,8 +69,11 @@ func (a *API) GetSourceRanking(sourceID string, kind string, page int) (RankingR
 }
 
 func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (DownloadChapterResult, error) {
+	startTime := time.Now()
 	if a.configManager == nil {
-		return DownloadChapterResult{}, fmt.Errorf("config manager is not available")
+		err := fmt.Errorf("config manager is not available")
+		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, DownloadChapterResult{}, err)
+		return DownloadChapterResult{}, err
 	}
 
 	rootDir := strings.TrimSpace(a.configManager.GetActiveLibrary())
@@ -74,15 +81,20 @@ func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (Download
 		rootDir = strings.TrimSpace(a.configManager.GetOutputDir())
 	}
 	if rootDir == "" {
-		return DownloadChapterResult{}, fmt.Errorf("no active library or output directory is configured")
+		err := fmt.Errorf("no active library or output directory is configured")
+		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, DownloadChapterResult{}, err)
+		return DownloadChapterResult{}, err
 	}
 
 	if sourceID == "jmcomic" {
-		return a.downloadJMChapter(rootDir, chapterID)
+		result, err := a.downloadJMChapter(rootDir, chapterID)
+		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, result, err)
+		return result, err
 	}
 
 	imageResult, err := a.registry.Images(sourceID, chapterID)
 	if err != nil {
+		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, DownloadChapterResult{}, err)
 		return DownloadChapterResult{}, err
 	}
 
@@ -99,7 +111,9 @@ func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (Download
 	}
 
 	if len(entries) == 0 {
-		return DownloadChapterResult{}, fmt.Errorf("no downloadable images returned by source")
+		err := fmt.Errorf("no downloadable images returned by source")
+		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, DownloadChapterResult{}, err)
+		return DownloadChapterResult{}, err
 	}
 
 	comicDir := sanitizeSegment(fallbackString(imageResult.ComicTitle, sourceID))
@@ -138,19 +152,24 @@ func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (Download
 
 	successCount, err := downloader.BatchDownloadJobs(jobs)
 	if err != nil {
+		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, DownloadChapterResult{}, err)
 		return DownloadChapterResult{}, err
 	}
 	if successCount != len(jobs) {
-		return DownloadChapterResult{}, fmt.Errorf("chapter download incomplete: %d/%d files saved", successCount, len(jobs))
+		err := fmt.Errorf("chapter download incomplete: %d/%d files saved", successCount, len(jobs))
+		a.recordSourceDownloadHistory(startTime, sourceID, chapterID, DownloadChapterResult{}, err)
+		return DownloadChapterResult{}, err
 	}
 
-	return DownloadChapterResult{
+	result := DownloadChapterResult{
 		Source:       imageResult.Source,
 		ComicTitle:   imageResult.ComicTitle,
 		ChapterTitle: imageResult.ChapterTitle,
 		SaveDir:      saveDir,
 		FileCount:    len(jobs),
-	}, nil
+	}
+	a.recordSourceDownloadHistory(startTime, sourceID, chapterID, result, nil)
+	return result, nil
 }
 
 func (a *API) downloadJMChapter(rootDir string, chapterID string) (DownloadChapterResult, error) {
@@ -301,4 +320,47 @@ func countFilesInDir(targetDir string) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (a *API) recordSourceDownloadHistory(startTime time.Time, sourceID string, chapterID string, result DownloadChapterResult, err error) {
+	if a.historyStore == nil {
+		return
+	}
+
+	now := time.Now()
+	record := &dto.DownloadTaskDTO{
+		ID:           fmt.Sprintf("source:%s:%s:%d", strings.TrimSpace(sourceID), strings.TrimSpace(chapterID), startTime.UnixNano()),
+		URL:          strings.TrimSpace(chapterID),
+		SavePath:     strings.TrimSpace(result.SaveDir),
+		StartTime:    startTime,
+		CompleteTime: now,
+		UpdatedAt:    now,
+		Name:         buildSourceDownloadHistoryName(sourceID, result),
+	}
+
+	if err != nil {
+		record.Status = string(types.StatusFailed)
+		record.Error = err.Error()
+	} else {
+		record.Status = string(types.StatusCompleted)
+		record.Progress.Current = result.FileCount
+		record.Progress.Total = result.FileCount
+	}
+
+	a.historyStore.AddDownloadRecord(record)
+}
+
+func buildSourceDownloadHistoryName(sourceID string, result DownloadChapterResult) string {
+	comic := strings.TrimSpace(result.ComicTitle)
+	chapter := strings.TrimSpace(result.ChapterTitle)
+	switch {
+	case comic != "" && chapter != "":
+		return fmt.Sprintf("%s / %s", comic, chapter)
+	case chapter != "":
+		return chapter
+	case comic != "":
+		return comic
+	default:
+		return fmt.Sprintf("%s online chapter", strings.TrimSpace(sourceID))
+	}
 }
