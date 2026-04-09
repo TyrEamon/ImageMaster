@@ -1,24 +1,36 @@
 <template>
   <div class="flex h-full flex-col">
     <header class="border-b border-neutral-800 bg-neutral-950/80 px-6 py-4">
-      <div class="flex flex-wrap items-center gap-3">
-        <button
-          class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
-          @click="router.back()"
-        >
-          返回
-        </button>
-        <div>
-          <div class="text-sm font-medium text-white">{{ imageResult.chapterTitle || '在线章节' }}</div>
-          <div class="mt-1 text-xs text-neutral-400">
-            {{ imageResult.comicTitle || sourceId || '在线漫画' }}
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            class="cursor-pointer rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
+            @click="router.back()"
+          >
+            返回
+          </button>
+          <div>
+            <div class="text-sm font-medium text-white">{{ imageResult.chapterTitle || '在线章节' }}</div>
+            <div class="mt-1 text-xs text-neutral-400">
+              {{ imageResult.comicTitle || sourceId || '在线漫画' }}
+            </div>
           </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            class="cursor-pointer rounded-xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="loading || downloading || imageResult.images.length === 0"
+            @click="downloadCurrentChapter"
+          >
+            {{ downloading ? '下载中...' : '下载到本地漫画库' }}
+          </button>
         </div>
       </div>
     </header>
 
     <div v-if="loading" class="flex h-full flex-1 items-center justify-center text-sm text-neutral-400">
-      加载图片中...
+      正在加载图片...
     </div>
 
     <div
@@ -71,7 +83,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { GetSourceImages } from '../../../wailsjs/go/source/API'
+import { toast } from 'vue-sonner'
+import { LoadActiveLibrary } from '../../../wailsjs/go/library/API'
+import { DownloadSourceChapter, GetSourceImages } from '../../../wailsjs/go/source/API'
 
 interface SourceSummary {
   id: string
@@ -92,9 +106,18 @@ interface ImageResult {
   nextUrl: string
 }
 
+interface DownloadChapterResult {
+  source: SourceSummary
+  comicTitle: string
+  chapterTitle: string
+  saveDir: string
+  fileCount: number
+}
+
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
+const downloading = ref(false)
 const errorMessage = ref('')
 const imageResult = ref<ImageResult>({
   source: {
@@ -142,6 +165,25 @@ async function loadImages() {
     errorMessage.value = error instanceof Error ? error.message : '加载图片失败，请稍后再试。'
   } finally {
     loading.value = false
+  }
+}
+
+async function downloadCurrentChapter() {
+  if (!sourceId.value || !chapterId.value) {
+    return
+  }
+
+  downloading.value = true
+  try {
+    const result = (await DownloadSourceChapter(sourceId.value, chapterId.value)) as DownloadChapterResult
+    await LoadActiveLibrary()
+    toast.success('章节已下载到本地漫画库', {
+      description: `${result.chapterTitle} · ${result.fileCount} 张`,
+    })
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : '下载章节失败，请稍后再试。')
+  } finally {
+    downloading.value = false
   }
 }
 

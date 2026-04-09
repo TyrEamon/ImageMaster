@@ -28,12 +28,17 @@ func NewMangaDexSource() *MangaDexSource {
 
 func (s *MangaDexSource) Summary() Summary {
 	return Summary{
-		ID:          "mangadex",
-		Name:        "MangaDex",
-		Type:        "manga",
-		Language:    "all",
-		Website:     mangaDexWebsiteURL,
-		Description: "内置示例源。当前版本先支持搜索，用来验证 ImageMaster 在线源架构。",
+		ID:       "mangadex",
+		Name:     "MangaDex",
+		Type:     "manga",
+		Language: "all",
+		Website:  mangaDexWebsiteURL,
+		Version:  "0.1.0",
+		BuiltIn:  true,
+		Capabilities: []string{
+			CapabilitySearch,
+		},
+		Description: "Built-in sample source for validating the ImageMaster online source flow.",
 	}
 }
 
@@ -136,7 +141,7 @@ func (s *MangaDexSource) Search(query string, page int) (SearchResult, error) {
 }
 
 func (s *MangaDexSource) Detail(itemID string) (DetailResult, error) {
-	return DetailResult{}, fmt.Errorf("MangaDex 详情尚未接入，当前先支持搜索")
+	return DetailResult{}, fmt.Errorf("MangaDex detail is not wired yet; this source currently supports search only")
 }
 
 func chooseMangaDexTitle(title map[string]string, altTitles []map[string]string) string {
@@ -184,7 +189,7 @@ func chooseMangaDexDescription(description map[string]string) string {
 		}
 	}
 
-	return "暂无简介"
+	return "No description available."
 }
 
 func fallbackString(primary string, fallback string) string {
@@ -198,7 +203,7 @@ func fallbackString(primary string, fallback string) string {
 		return fallback
 	}
 
-	return "未知"
+	return "Unknown"
 }
 
 type mangaDexSearchResponse struct {

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 const SHELF_STORAGE_KEY = 'imagemaster:shelf-state:v1'
 const PROGRESS_STORAGE_KEY = 'imagemaster:reading-progress:v2'
+const ONLINE_SHELF_STORAGE_KEY = 'imagemaster:online-shelf:v1'
 const READING_PROGRESS_RETENTION_DAYS = 90
 
 export interface MangaShelfState {
@@ -18,6 +19,21 @@ export interface MangaReadingProgress {
   progressPercent: number
   lastReadImage: number
   completed: boolean
+}
+
+export interface OnlineShelfItem {
+  key: string
+  sourceId: string
+  sourceName: string
+  itemId: string
+  title: string
+  cover: string
+  summary: string
+  author: string
+  status: string
+  detailUrl: string
+  savedAt: number
+  updatedAt: number
 }
 
 function createDefaultShelfState(): MangaShelfState {
@@ -54,6 +70,7 @@ export const useLibraryMetaStore = defineStore('libraryMeta', {
   state: () => ({
     shelfStates: loadStorageObject<Record<string, MangaShelfState>>(SHELF_STORAGE_KEY, {}),
     readingProgress: loadStorageObject<Record<string, MangaReadingProgress>>(PROGRESS_STORAGE_KEY, {}),
+    onlineShelf: loadStorageObject<Record<string, OnlineShelfItem>>(ONLINE_SHELF_STORAGE_KEY, {}),
   }),
 
   getters: {
@@ -67,6 +84,22 @@ export const useLibraryMetaStore = defineStore('libraryMeta', {
     getReadingProgress: (state) => (path: string): MangaReadingProgress | null => {
       return state.readingProgress[path] ?? null
     },
+
+    getOnlineShelfKey: () => (sourceId: string, itemId: string): string => {
+      return `${sourceId}::${itemId}`
+    },
+
+    getOnlineShelfItem: (state) => (sourceId: string, itemId: string): OnlineShelfItem | null => {
+      return state.onlineShelf[`${sourceId}::${itemId}`] ?? null
+    },
+
+    isOnlineShelfSaved: (state) => (sourceId: string, itemId: string): boolean => {
+      return `${sourceId}::${itemId}` in state.onlineShelf
+    },
+
+    onlineShelfItems: (state): OnlineShelfItem[] => {
+      return Object.values(state.onlineShelf).sort((left, right) => right.updatedAt - left.updatedAt)
+    },
   },
 
   actions: {
@@ -76,6 +109,10 @@ export const useLibraryMetaStore = defineStore('libraryMeta', {
 
     persistReadingProgress() {
       persistStorageObject(PROGRESS_STORAGE_KEY, this.readingProgress)
+    },
+
+    persistOnlineShelf() {
+      persistStorageObject(ONLINE_SHELF_STORAGE_KEY, this.onlineShelf)
     },
 
     cleanupOldReadingProgress() {
@@ -157,6 +194,45 @@ export const useLibraryMetaStore = defineStore('libraryMeta', {
     removeMangaState(path: string) {
       this.removeShelfState(path)
       this.removeReadingProgress(path)
+    },
+
+    saveOnlineShelfItem(item: Omit<OnlineShelfItem, 'key' | 'savedAt' | 'updatedAt'>) {
+      const key = this.getOnlineShelfKey(item.sourceId, item.itemId)
+      const previous = this.onlineShelf[key]
+      const nextItem: OnlineShelfItem = {
+        ...item,
+        key,
+        savedAt: previous?.savedAt ?? Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      this.onlineShelf = {
+        ...this.onlineShelf,
+        [key]: nextItem,
+      }
+      this.persistOnlineShelf()
+    },
+
+    removeOnlineShelfItem(sourceId: string, itemId: string) {
+      const key = this.getOnlineShelfKey(sourceId, itemId)
+      if (!(key in this.onlineShelf)) {
+        return
+      }
+
+      const nextShelf = { ...this.onlineShelf }
+      delete nextShelf[key]
+      this.onlineShelf = nextShelf
+      this.persistOnlineShelf()
+    },
+
+    toggleOnlineShelfItem(item: Omit<OnlineShelfItem, 'key' | 'savedAt' | 'updatedAt'>) {
+      if (this.isOnlineShelfSaved(item.sourceId, item.itemId)) {
+        this.removeOnlineShelfItem(item.sourceId, item.itemId)
+        return false
+      }
+
+      this.saveOnlineShelfItem(item)
+      return true
     },
   },
 })

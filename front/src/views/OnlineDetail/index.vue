@@ -13,7 +13,7 @@
         </div>
       </div>
 
-      <div v-if="loading" class="py-16 text-center text-sm text-neutral-400">加载详情中...</div>
+      <div v-if="loading" class="py-16 text-center text-sm text-neutral-400">正在加载详情...</div>
 
       <div
         v-else-if="errorMessage"
@@ -63,6 +63,18 @@
           </p>
 
           <div class="flex flex-wrap gap-3">
+            <button
+              class="cursor-pointer rounded-xl border px-4 py-2 text-sm transition-colors"
+              :class="
+                inOnlineShelf
+                  ? 'border-amber-400/50 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20'
+                  : 'border-neutral-700 text-neutral-200 hover:bg-neutral-800'
+              "
+              @click="toggleOnlineShelf"
+            >
+              {{ inOnlineShelf ? '移出在线书架' : '加入在线书架' }}
+            </button>
+
             <a
               v-if="detail.item.detailUrl"
               :href="detail.item.detailUrl"
@@ -82,7 +94,7 @@
         <div>
           <h2 class="text-lg font-semibold text-white">章节列表</h2>
           <p class="mt-1 text-sm text-neutral-400">
-            现在已经接到软件内详情页。点击章节会进入软件内在线阅读页。
+            点章节会进入软件内的在线阅读页，不需要先下载到本地。
           </p>
         </div>
         <div class="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-300">
@@ -116,8 +128,10 @@
 </template>
 
 <script setup lang="ts">
+import { useLibraryMetaStore } from '@/stores/libraryMetaStore'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 import { GetSourceDetail } from '../../../wailsjs/go/source/API'
 
 interface SourceSummary {
@@ -126,6 +140,9 @@ interface SourceSummary {
   type: string
   language: string
   website: string
+  version?: string
+  builtIn?: boolean
+  capabilities?: string[]
   description: string
 }
 
@@ -133,6 +150,7 @@ interface ChapterItem {
   id: string
   name: string
   url: string
+  index?: number
   updatedLabel: string
 }
 
@@ -155,6 +173,7 @@ interface DetailResult {
 
 const route = useRoute()
 const router = useRouter()
+const libraryMetaStore = useLibraryMetaStore()
 const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref<DetailResult>({
@@ -181,6 +200,13 @@ const detail = ref<DetailResult>({
 
 const sourceId = computed(() => String(route.query.source ?? '').trim())
 const itemId = computed(() => String(route.query.id ?? '').trim())
+const inOnlineShelf = computed(() => {
+  if (!sourceId.value || !itemId.value) {
+    return false
+  }
+
+  return libraryMetaStore.isOnlineShelfSaved(sourceId.value, itemId.value)
+})
 
 onMounted(() => {
   loadDetail()
@@ -209,6 +235,24 @@ async function loadDetail() {
   } finally {
     loading.value = false
   }
+}
+
+function toggleOnlineShelf() {
+  const saved = libraryMetaStore.toggleOnlineShelfItem({
+    sourceId: detail.value.source.id,
+    sourceName: detail.value.source.name,
+    itemId: detail.value.item.id,
+    title: detail.value.item.title,
+    cover: detail.value.item.cover,
+    summary: detail.value.item.summary,
+    author: detail.value.item.author,
+    status: detail.value.item.status,
+    detailUrl: detail.value.item.detailUrl,
+  })
+
+  toast.success(saved ? '已加入在线书架' : '已移出在线书架', {
+    description: detail.value.item.title,
+  })
 }
 
 function openReader(chapter: ChapterItem) {

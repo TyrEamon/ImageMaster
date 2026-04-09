@@ -29,12 +29,19 @@ func NewBaoziSource() *BaoziSource {
 
 func (s *BaoziSource) Summary() Summary {
 	return Summary{
-		ID:          "baozi",
-		Name:        "包子漫画",
-		Type:        "manga",
-		Language:    "zh",
-		Website:     baoziBaseURL,
-		Description: "参考 Miru 的包子漫画源实现。当前版本先支持搜索、详情和在线阅读。",
+		ID:       "baozi",
+		Name:     "Baozi",
+		Type:     "manga",
+		Language: "zh",
+		Website:  baoziBaseURL,
+		Version:  "0.1.0",
+		BuiltIn:  true,
+		Capabilities: []string{
+			CapabilitySearch,
+			CapabilityDetail,
+			CapabilityRead,
+		},
+		Description: "Built-in Baozi source with search, detail, chapter list, and online reading.",
 	}
 }
 
@@ -95,7 +102,7 @@ func (s *BaoziSource) Search(query string, page int) (SearchResult, error) {
 			return
 		}
 
-		summary := "来自包子漫画搜索"
+		summary := "Baozi search result"
 		if len(tags) > 0 {
 			summary = strings.Join(tags, " / ")
 		}
@@ -105,7 +112,7 @@ func (s *BaoziSource) Search(query string, page int) (SearchResult, error) {
 			Title:          title,
 			Cover:          cover,
 			Summary:        summary,
-			PrimaryLabel:   fallbackString(author, "未知作者"),
+			PrimaryLabel:   fallbackString(author, "Unknown author"),
 			SecondaryLabel: strings.Join(tags, " / "),
 			DetailURL:      resolveBaoziURL(href),
 		})
@@ -154,7 +161,7 @@ func (s *BaoziSource) Detail(itemID string) (DetailResult, error) {
 
 	chapters := make([]ChapterItem, 0, 32)
 	seen := map[string]struct{}{}
-	doc.Find(".comics-chapters__item").Each(func(_ int, selection *goquery.Selection) {
+	doc.Find(".comics-chapters__item").Each(func(index int, selection *goquery.Selection) {
 		href, _ := selection.Attr("href")
 		resolvedURL := resolveBaoziURL(href)
 		if resolvedURL == "" {
@@ -178,6 +185,7 @@ func (s *BaoziSource) Detail(itemID string) (DetailResult, error) {
 			ID:           strings.TrimPrefix(strings.TrimSpace(href), "/"),
 			Name:         name,
 			URL:          resolvedURL,
+			Index:        index,
 			UpdatedLabel: updatedLabel,
 		})
 	})
@@ -186,11 +194,11 @@ func (s *BaoziSource) Detail(itemID string) (DetailResult, error) {
 		Source: s.Summary(),
 		Item: DetailItem{
 			ID:        strings.TrimPrefix(strings.TrimSpace(itemID), "/"),
-			Title:     fallbackString(title, "未命名作品"),
+			Title:     fallbackString(title, "Untitled"),
 			Cover:     cover,
-			Summary:   fallbackString(summary, "暂无简介"),
-			Author:    fallbackString(author, "未知作者"),
-			Status:    fallbackString(status, "状态未知"),
+			Summary:   fallbackString(summary, "No summary available."),
+			Author:    fallbackString(author, "Unknown author"),
+			Status:    fallbackString(status, "Unknown"),
 			Tags:      tags,
 			DetailURL: detailURL,
 			Chapters:  chapters,
@@ -208,6 +216,7 @@ func (s *BaoziSource) Images(chapterID string) (ImageResult, error) {
 	matches := baoziImageRegexp.FindAllStringSubmatch(htmlText, -1)
 	seen := map[string]struct{}{}
 	images := make([]string, 0, len(matches))
+	entries := make([]ImageEntry, 0, len(matches))
 	for _, match := range matches {
 		if len(match) < 2 {
 			continue
@@ -221,6 +230,13 @@ func (s *BaoziSource) Images(chapterID string) (ImageResult, error) {
 		}
 		seen[imageURL] = struct{}{}
 		images = append(images, imageURL)
+		entries = append(entries, ImageEntry{
+			URL:     imageURL,
+			Referer: finalURL,
+			Headers: map[string]string{
+				"Referer": finalURL,
+			},
+		})
 	}
 
 	if len(images) == 0 {
@@ -242,7 +258,7 @@ func (s *BaoziSource) Images(chapterID string) (ImageResult, error) {
 		chapterTitle = normalizeBaoziText(strings.SplitN(chapterTitle, "-", 2)[0])
 	}
 	if chapterTitle == "" {
-		chapterTitle = "在线章节"
+		chapterTitle = "Online chapter"
 	}
 
 	nextURL := strings.TrimSpace(doc.Find("#next-chapter").AttrOr("href", ""))
@@ -250,10 +266,11 @@ func (s *BaoziSource) Images(chapterID string) (ImageResult, error) {
 
 	return ImageResult{
 		Source:       s.Summary(),
-		ComicTitle:   fallbackString(comicTitle, "包子漫画"),
+		ComicTitle:   fallbackString(comicTitle, "Baozi"),
 		ChapterTitle: chapterTitle,
 		ChapterURL:   finalURL,
 		Images:       images,
+		Entries:      entries,
 		HasNext:      nextURL != "" && !strings.Contains(doc.Text(), "這是本作品最後一話了"),
 		NextURL:      nextURL,
 	}, nil

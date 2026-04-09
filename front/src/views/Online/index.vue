@@ -6,15 +6,15 @@
           <p class="mb-2 text-xs uppercase tracking-[0.3em] text-sky-300/80">Online Sources</p>
           <h1 class="text-2xl font-semibold text-white">在线漫画库</h1>
           <p class="mt-2 text-sm leading-6 text-neutral-400">
-            这是 ImageMaster 在线源系统的第一版样板。当前先做内置源，跑通“选源 -> 搜索 -> 详情”的闭环，
-            后面再把源逐步外置成独立源文件。
+            这一块是 ImageMaster 在线源系统的第一版。现在已经能跑通选源、搜索、详情、章节和在线阅读；
+            后面再继续把源外置成独立源文件。
           </p>
         </div>
 
         <div class="w-full max-w-xl">
           <Input
             v-model="searchKeyword"
-            help="当前版本先支持搜索和包子漫画详情。后续会继续接章节阅读和下载到本地漫画库。"
+            help="当前版本支持搜索、包子漫画详情、章节阅读和当前章节下载到本地漫画库。"
             placeholder="输入关键字搜索在线漫画源"
             @keydown.enter="runSearch(1)"
           />
@@ -86,7 +86,7 @@
           v-else-if="result.items.length === 0"
           class="rounded-2xl border border-dashed border-neutral-800 px-6 py-12 text-center text-sm text-neutral-500"
         >
-          先选择一个源并搜索关键字。当前版本先展示搜索结果，后续会继续接详情、章节与下载。
+          先选择一个源并搜索关键字。你也可以把不想下载的漫画先收藏到右侧的在线书架里。
         </div>
 
         <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -115,7 +115,7 @@
               <div class="mt-2 flex flex-wrap gap-2">
                 <button
                   class="cursor-pointer rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-xs text-sky-100 transition-colors hover:bg-sky-500/20"
-                  @click="openDetail(item)"
+                  @click="openDetail(result.source.id, item.id)"
                 >
                   在软件内查看
                 </button>
@@ -134,30 +134,75 @@
         </div>
       </div>
 
-      <aside class="rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6">
-        <h2 class="text-lg font-semibold text-white">当前方案</h2>
-        <ul class="mt-4 space-y-3 text-sm leading-6 text-neutral-400">
-          <li>先内置少量源，验证在线源架构是否顺手。</li>
-          <li>下载逻辑继续留在软件本体，源只负责解析。</li>
-          <li>等搜索、详情、章节稳定后，再外置为独立源文件。</li>
-          <li>后续如果你满意，再做“安装源 / 更新源”这一步。</li>
-        </ul>
+      <aside class="space-y-4">
+        <div class="rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6">
+          <h2 class="text-lg font-semibold text-white">当前方案</h2>
+          <ul class="mt-4 space-y-3 text-sm leading-6 text-neutral-400">
+            <li>先内置少量源，验证在线源架构是否顺手。</li>
+            <li>下载逻辑继续留在软件本体，源只负责解析。</li>
+            <li>等搜索、详情、章节稳定后，再外置为独立源文件。</li>
+            <li>现在已经支持包子漫画在线详情、章节阅读和当前章节下载。</li>
+          </ul>
 
-        <div class="mt-6 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
-          <div class="text-xs uppercase tracking-[0.28em] text-neutral-500">Selected Source</div>
-          <div class="mt-2 text-base font-medium text-white">{{ selectedSource?.name ?? '未选择' }}</div>
-          <p class="mt-2 text-sm text-neutral-400">
-            {{ selectedSource?.description ?? '请选择一个源开始。' }}
+          <div class="mt-6 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
+            <div class="text-xs uppercase tracking-[0.28em] text-neutral-500">Selected Source</div>
+            <div class="mt-2 text-base font-medium text-white">{{ selectedSource?.name ?? '未选择' }}</div>
+            <p class="mt-2 text-sm text-neutral-400">
+              {{ selectedSource?.description ?? '请选择一个源开始。' }}
+            </p>
+            <a
+              v-if="selectedSource?.website"
+              :href="selectedSource.website"
+              target="_blank"
+              rel="noreferrer"
+              class="mt-3 inline-block text-xs text-sky-300 hover:text-sky-200"
+            >
+              访问源站
+            </a>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6">
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold text-white">在线书架</h2>
+            <span class="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-300">
+              {{ onlineShelfItems.length }} 本
+            </span>
+          </div>
+
+          <p class="mt-2 text-sm leading-6 text-neutral-400">
+            不想下载到本地时，可以先加入在线书架，后面继续从软件里打开详情和章节。
           </p>
-          <a
-            v-if="selectedSource?.website"
-            :href="selectedSource.website"
-            target="_blank"
-            rel="noreferrer"
-            class="mt-3 inline-block text-xs text-sky-300 hover:text-sky-200"
-          >
-            访问源站
-          </a>
+
+          <div v-if="onlineShelfItems.length === 0" class="mt-5 text-sm text-neutral-500">
+            还没有收藏的在线漫画。进入详情页后点“加入在线书架”就行。
+          </div>
+
+          <div v-else class="mt-5 space-y-3">
+            <button
+              v-for="item in onlineShelfItems"
+              :key="item.key"
+              class="flex w-full cursor-pointer gap-3 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-3 text-left transition-colors hover:bg-neutral-800/70"
+              @click="openDetail(item.sourceId, item.itemId)"
+            >
+              <div class="h-20 w-14 shrink-0 overflow-hidden rounded-xl bg-neutral-900">
+                <img
+                  v-if="item.cover"
+                  :src="item.cover"
+                  :alt="item.title"
+                  class="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="line-clamp-2 text-sm font-medium text-white">{{ item.title }}</div>
+                <div class="mt-1 text-xs text-neutral-400">{{ item.sourceName }}</div>
+                <div class="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">
+                  {{ item.summary || item.author || '在线书架项目' }}
+                </div>
+              </div>
+            </button>
+          </div>
         </div>
       </aside>
     </section>
@@ -165,9 +210,10 @@
 </template>
 
 <script setup lang="ts">
+import { Input } from '@/components'
+import { useLibraryMetaStore } from '@/stores/libraryMetaStore'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Input } from '@/components'
 import { ListSources, SearchSources } from '../../../wailsjs/go/source/API'
 
 interface SourceSummary {
@@ -176,6 +222,9 @@ interface SourceSummary {
   type: string
   language: string
   website: string
+  version?: string
+  builtIn?: boolean
+  capabilities?: string[]
   description: string
 }
 
@@ -199,6 +248,7 @@ interface SearchResult {
 }
 
 const router = useRouter()
+const libraryMetaStore = useLibraryMetaStore()
 const sources = ref<SourceSummary[]>([])
 const selectedSourceId = ref('')
 const searchKeyword = ref('')
@@ -223,6 +273,8 @@ const result = ref<SearchResult>({
 const selectedSource = computed(
   () => sources.value.find((source) => source.id === selectedSourceId.value) ?? null,
 )
+
+const onlineShelfItems = computed(() => libraryMetaStore.onlineShelfItems)
 
 const resultCaption = computed(() => {
   if (!result.value.query) {
@@ -254,13 +306,10 @@ async function runSearch(page: number) {
   }
 }
 
-function openDetail(item: SearchItem) {
+function openDetail(source: string, id: string) {
   router.push({
     path: '/online/detail',
-    query: {
-      source: result.value.source.id,
-      id: item.id,
-    },
+    query: { source, id },
   })
 }
 

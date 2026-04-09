@@ -13,6 +13,10 @@ export function GetSourceImages(arg1, arg2) {
   return window['go']['source']['API']['GetSourceImages'](arg1, arg2)
 }
 
+export function DownloadSourceChapter(arg1, arg2) {
+  return window['go']['source']['API']['DownloadSourceChapter'](arg1, arg2)
+}
+
 export function SearchSources(arg1, arg2, arg3) {
   return window['go']['source']['API']['SearchSources'](arg1, arg2, arg3)
 }

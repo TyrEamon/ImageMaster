@@ -1,13 +1,22 @@
 package source
 
 type Summary struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Language    string `json:"language"`
-	Website     string `json:"website"`
-	Description string `json:"description"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Type         string   `json:"type"`
+	Language     string   `json:"language"`
+	Website      string   `json:"website"`
+	Version      string   `json:"version"`
+	BuiltIn      bool     `json:"builtIn"`
+	Capabilities []string `json:"capabilities"`
+	Description  string   `json:"description"`
 }
+
+const (
+	CapabilitySearch = "search"
+	CapabilityDetail = "detail"
+	CapabilityRead   = "read"
+)
 
 type SearchItem struct {
 	ID             string `json:"id"`
@@ -32,6 +41,7 @@ type ChapterItem struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
 	URL          string `json:"url"`
+	Index        int    `json:"index"`
 	UpdatedLabel string `json:"updatedLabel"`
 }
 
@@ -52,14 +62,29 @@ type DetailResult struct {
 	Item   DetailItem `json:"item"`
 }
 
+type ImageEntry struct {
+	URL     string            `json:"url"`
+	Referer string            `json:"referer,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
+}
+
 type ImageResult struct {
-	Source       Summary  `json:"source"`
-	ComicTitle   string   `json:"comicTitle"`
-	ChapterTitle string   `json:"chapterTitle"`
-	ChapterURL   string   `json:"chapterUrl"`
-	Images       []string `json:"images"`
-	HasNext      bool     `json:"hasNext"`
-	NextURL      string   `json:"nextUrl"`
+	Source       Summary      `json:"source"`
+	ComicTitle   string       `json:"comicTitle"`
+	ChapterTitle string       `json:"chapterTitle"`
+	ChapterURL   string       `json:"chapterUrl"`
+	Images       []string     `json:"images"`
+	Entries      []ImageEntry `json:"entries"`
+	HasNext      bool         `json:"hasNext"`
+	NextURL      string       `json:"nextUrl"`
+}
+
+type DownloadChapterResult struct {
+	Source       Summary `json:"source"`
+	ComicTitle   string  `json:"comicTitle"`
+	ChapterTitle string  `json:"chapterTitle"`
+	SaveDir      string  `json:"saveDir"`
+	FileCount    int     `json:"fileCount"`
 }
 
 type Provider interface {
