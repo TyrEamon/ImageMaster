@@ -18,6 +18,7 @@ type SourceManifest struct {
 	Adapter      string   `json:"adapter"`
 	Provider     string   `json:"provider,omitempty"`
 	Engine       string   `json:"engine,omitempty"`
+	Script       string   `json:"script,omitempty"`
 	Name         string   `json:"name"`
 	Type         string   `json:"type"`
 	Language     string   `json:"language"`
@@ -42,24 +43,61 @@ type SourceManifest struct {
 }
 
 func loadSourceManifests() []SourceManifest {
-	sourceDir := resolveSourcesDir()
-	if sourceDir == "" {
+	sourceDirs := resolveSourcesDirs()
+	if len(sourceDirs) == 0 {
 		return nil
 	}
 
-	indexPath := filepath.Join(sourceDir, "index.json")
-	manifestPaths := make([]string, 0, 8)
+	manifestByID := map[string]SourceManifest{}
+	for _, sourceDir := range sourceDirs {
+		indexPath := filepath.Join(sourceDir, "index.json")
+		manifestPaths := make([]string, 0, 8)
 
-	if isFile(indexPath) {
-		manifestPaths = append(manifestPaths, readManifestPathsFromIndex(sourceDir, indexPath)...)
-	} else {
-		manifestPaths = append(manifestPaths, scanManifestPaths(sourceDir)...)
+		if isFile(indexPath) {
+			manifestPaths = append(manifestPaths, readManifestPathsFromIndex(sourceDir, indexPath)...)
+		} else {
+			manifestPaths = append(manifestPaths, scanManifestPaths(sourceDir)...)
+		}
+
+		for _, manifestPath := range manifestPaths {
+			clean := filepath.Clean(strings.TrimSpace(manifestPath))
+			if clean == "" {
+				continue
+			}
+
+			manifest, ok := readManifest(clean)
+			if !ok {
+				continue
+			}
+			manifestByID[manifest.ID] = manifest
+		}
 	}
 
-	seen := make(map[string]struct{}, len(manifestPaths))
-	manifests := make([]SourceManifest, 0, len(manifestPaths))
-	for _, manifestPath := range manifestPaths {
-		clean := filepath.Clean(strings.TrimSpace(manifestPath))
+	manifests := make([]SourceManifest, 0, len(manifestByID))
+	for _, manifest := range manifestByID {
+		manifests = append(manifests, manifest)
+	}
+	sort.Slice(manifests, func(i, j int) bool {
+		return manifests[i].ID < manifests[j].ID
+	})
+
+	return manifests
+}
+
+func resolveSourcesDirs() []string {
+	candidates := []string{}
+	if exePath, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exePath), "sources"))
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(cwd, "sources"))
+	}
+	candidates = append(candidates, ResolveUserSourcesDir())
+
+	dirs := make([]string, 0, len(candidates))
+	seen := map[string]struct{}{}
+	for _, candidate := range candidates {
+		clean := filepath.Clean(strings.TrimSpace(candidate))
 		if clean == "" {
 			continue
 		}
@@ -68,36 +106,24 @@ func loadSourceManifests() []SourceManifest {
 		}
 		seen[clean] = struct{}{}
 
-		manifest, ok := readManifest(clean)
-		if !ok {
-			continue
+		if info, err := os.Stat(clean); err == nil && info.IsDir() {
+			dirs = append(dirs, clean)
 		}
-		manifests = append(manifests, manifest)
 	}
 
-	sort.Slice(manifests, func(i, j int) bool {
-		return manifests[i].ID < manifests[j].ID
-	})
-
-	return manifests
+	return dirs
 }
 
-func resolveSourcesDir() string {
-	candidates := []string{}
-	if exePath, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exePath), "sources"))
-	}
-	if cwd, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(cwd, "sources"))
-	}
-
-	for _, candidate := range candidates {
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
+func ResolveUserSourcesDir() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+			return filepath.Join(cwd, "user-sources")
 		}
+		return ""
 	}
 
-	return ""
+	return filepath.Join(configDir, "imagemaster-sources")
 }
 
 func readManifestPathsFromIndex(sourceDir string, indexPath string) []string {
@@ -165,6 +191,7 @@ func readManifest(path string) (SourceManifest, bool) {
 	manifest.Version = strings.TrimSpace(manifest.Version)
 	manifest.Provider = strings.TrimSpace(manifest.Provider)
 	manifest.Engine = strings.TrimSpace(manifest.Engine)
+	manifest.Script = strings.TrimSpace(manifest.Script)
 	manifest.Package = strings.TrimSpace(manifest.Package)
 	manifest.Author = strings.TrimSpace(manifest.Author)
 	manifest.License = strings.TrimSpace(manifest.License)

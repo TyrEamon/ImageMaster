@@ -3,6 +3,7 @@
   "sources": [
     "baozi.json",
     "jmcomic.json",
-    "mangadex.json"
+    "mangadex.json",
+    "miru/com.dmzj.www.json"
   ]
 }

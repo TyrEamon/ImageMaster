@@ -48,6 +48,14 @@ func (a *API) SetBandizipPath(path string) bool {
 	return a.manager.SetBandizipPath(path)
 }
 
+func (a *API) GetSourceRepoURL() string {
+	return a.manager.GetSourceRepoURL()
+}
+
+func (a *API) SetSourceRepoURL(rawURL string) bool {
+	return a.manager.SetSourceRepoURL(rawURL)
+}
+
 func (a *API) GetJmCacheDir() string {
 	return a.manager.GetJmCacheDir()
 }

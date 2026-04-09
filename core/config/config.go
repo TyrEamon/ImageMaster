@@ -20,6 +20,7 @@ var defaultConfig = Config{
 	OutputDir:             "",
 	ProxyURL:              "",
 	BandizipPath:          "",
+	SourceRepoURL:         "",
 	JmCacheDir:            "",
 	JmCacheRetentionHours: 24,
 	JmCacheSizeLimitMB:    2048,
@@ -31,6 +32,7 @@ type Config struct {
 	OutputDir             string   `json:"output_dir"`
 	ProxyURL              string   `json:"proxy_url"`
 	BandizipPath          string   `json:"bandizip_path"`
+	SourceRepoURL         string   `json:"source_repo_url"`
 	JmCacheDir            string   `json:"jm_cache_dir"`
 	JmCacheRetentionHours int      `json:"jm_cache_retention_hours"`
 	JmCacheSizeLimitMB    int      `json:"jm_cache_size_limit_mb"`
@@ -187,6 +189,16 @@ func (m *Manager) SetBandizipPath(path string) bool {
 
 func (m *Manager) GetBandizipPath() string {
 	return m.config.BandizipPath
+}
+
+func (m *Manager) SetSourceRepoURL(rawURL string) bool {
+	m.config.SourceRepoURL = rawURL
+	logger.Debug("Set source repo url: %s", rawURL)
+	return m.SaveConfig()
+}
+
+func (m *Manager) GetSourceRepoURL() string {
+	return m.config.SourceRepoURL
 }
 
 func (m *Manager) SetJmCacheDir(path string) bool {

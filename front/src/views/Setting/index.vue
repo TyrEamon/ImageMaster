@@ -57,11 +57,49 @@
       <div class="text-xs leading-6 text-neutral-400">
         当前解压功能依赖外部 Bandizip 控制台工具。推荐填写类似
         <span class="select-all text-neutral-200">D:\bandizip\bz.exe</span>
-        的可执行文件路径；如果填的是
+        的可执行文件路径；如果填写的是
         <span class="select-all text-neutral-200">Bandizip.exe</span>
         ，软件会自动尝试同目录下的
         <span class="select-all text-neutral-200">bz.exe</span>
         。留空时会自动检测常见安装位置。
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-4">
+      <div class="text-xl">源仓库</div>
+      <div class="rounded-2xl border border-neutral-300/20 bg-neutral-900/40 p-4">
+        <div class="flex flex-col gap-4">
+          <Input
+            v-model="sourceRepoUrl"
+            class="w-full"
+            placeholder="填写 GitHub 仓库地址，或直接填写远程 index.json 地址"
+            @blur="saveSourceRepoUrl"
+          />
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="rounded-xl border border-neutral-300/10 bg-neutral-950/40 p-3 text-xs leading-6 text-neutral-400">
+              <div><span class="text-neutral-200">内置源目录：</span>{{ sourceStorageInfo?.bundledDir || '-' }}</div>
+              <div><span class="text-neutral-200">本地源目录：</span>{{ sourceStorageInfo?.userDir || '-' }}</div>
+            </div>
+
+            <div class="rounded-xl border border-neutral-300/10 bg-neutral-950/40 p-3 text-xs leading-6 text-neutral-400">
+              <div>同步时会把仓库里的 index、manifest 和脚本下载到本地源目录。</div>
+              <div>以后你只要维护 GitHub 源仓库，软件同步后就能加载更新。</div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button class="rounded-2xl border border-neutral-300/50 px-4 py-2" @click="syncSourceRepo">
+              同步源仓库
+            </button>
+            <button class="rounded-2xl border border-neutral-300/50 px-4 py-2" @click="reloadLocalSources">
+              重载本地源
+            </button>
+            <button class="rounded-2xl border border-neutral-300/50 px-4 py-2" @click="copyText(sourceStorageInfo?.userDir)">
+              复制本地源目录
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -108,7 +146,7 @@
           。如果你不想占用 C 盘，可以把缓存目录改到 D 盘或任意自定义路径。
         </div>
         <div class="mt-2 text-xs leading-6 text-neutral-400">
-          清理规则是：先删超出保留时长的旧章节缓存；如果总大小仍然超出上限，再按最旧缓存继续删除。
+          清理规则是：先删除超过保留时长的旧章节缓存；如果总大小仍然超过上限，再按最旧缓存继续删除。
         </div>
       </div>
     </section>
@@ -121,16 +159,10 @@
         <div>大小：{{ formatSize(logInfo?.sizeBytes) }}</div>
       </div>
       <div class="flex gap-2">
-        <button
-          class="rounded-2xl border border-neutral-300/50 px-4 py-2"
-          @click="copyText(logInfo?.currentFile)"
-        >
+        <button class="rounded-2xl border border-neutral-300/50 px-4 py-2" @click="copyText(logInfo?.currentFile)">
           复制日志文件路径
         </button>
-        <button
-          class="rounded-2xl border border-neutral-300/50 px-4 py-2"
-          @click="copyText(logInfo?.dir)"
-        >
+        <button class="rounded-2xl border border-neutral-300/50 px-4 py-2" @click="copyText(logInfo?.dir)">
           复制日志目录
         </button>
       </div>
@@ -145,7 +177,7 @@
         <div class="mb-4 rounded-xl border border-amber-300/20 bg-amber-400/5 p-3 text-xs text-neutral-300">
           <div>1. 先复制浏览器地址栏里的详情页，再粘贴到下载页。</div>
           <div>2. 403、挑战页、登录限制、站点改版都会导致失败。</div>
-          <div>3. 18Comic 当前适配较旧，只建议尝试 `photo/...` 这种作品页。</div>
+          <div>3. 18Comic 当前适配较老，只建议尝试 `photo/...` 这种作品页。</div>
           <div>4. 如果报 unsupported site、403 或找不到图片，优先检查链接类型是否正确。</div>
         </div>
         <div class="flex flex-col gap-3">
@@ -185,10 +217,7 @@
           <div>Build Time: <span class="select-all">{{ versionInfo?.buildTime || '-' }}</span></div>
         </div>
         <div class="mt-3 flex gap-2">
-          <button
-            class="rounded-2xl border border-neutral-300/50 px-4 py-2"
-            @click="copyText(versionInfo?.display)"
-          >
+          <button class="rounded-2xl border border-neutral-300/50 px-4 py-2" @click="copyText(versionInfo?.display)">
             Copy Version
           </button>
           <button
@@ -229,10 +258,7 @@
           If this area shows <span class="text-neutral-200">Not Ready</span>, JM links will fall back to the legacy crawler.
         </div>
         <div class="mt-3 flex gap-2">
-          <button
-            class="rounded-2xl border border-neutral-300/50 px-4 py-2"
-            @click="copyText(jmRuntimeInfo?.helperPath)"
-          >
+          <button class="rounded-2xl border border-neutral-300/50 px-4 py-2" @click="copyText(jmRuntimeInfo?.helperPath)">
             Copy Helper Path
           </button>
           <button
@@ -267,6 +293,7 @@ import {
   GetLibraries,
   GetOutputDir,
   GetProxy,
+  GetSourceRepoURL,
   SetActiveLibrary,
   SetBandizipPath,
   SetJmCacheDir,
@@ -274,10 +301,12 @@ import {
   SetJmCacheSizeLimitMB,
   SetOutputDir,
   SetProxy,
+  SetSourceRepoURL,
 } from '../../../wailsjs/go/config/API'
 import { LoadLibrary } from '../../../wailsjs/go/library/API'
 import { GetLogInfo } from '../../../wailsjs/go/logger/API'
 import { GetJmRuntimeInfo, GetVersionInfo } from '../../../wailsjs/go/meta/API'
+import { GetSourceStorageInfo, ReloadSources, SyncSourceRepository } from '../../../wailsjs/go/source/API'
 
 type LinkTip = {
   name: string
@@ -307,6 +336,21 @@ type JmRuntimeInfo = {
   source: string
 }
 
+type SourceStorageInfo = {
+  bundledDir: string
+  userDir: string
+}
+
+type SourceRepoSyncResult = {
+  repoUrl: string
+  indexUrl: string
+  localDir: string
+  manifestCount: number
+  scriptCount: number
+  enabledManifestCount: number
+  updatedAt: string
+}
+
 const linkTips: LinkTip[] = [
   {
     name: 'E-Hentai',
@@ -319,7 +363,7 @@ const linkTips: LinkTip[] = [
     name: 'ExHentai',
     template: 'https://exhentai.org/g/{gallery-id}/{token}/',
     pageType: '具体 gallery 页',
-    avoid: '首页、搜索页、排行榜页',
+    avoid: '首页、搜索页、排行页',
     note: '通常要求站点本身可访问；没有访问权限时会直接失败。',
   },
   {
@@ -362,7 +406,7 @@ const linkTips: LinkTip[] = [
     template: 'https://18comic.vip/photo/{id}',
     pageType: '具体 photo 作品页',
     avoid: '首页、分类页、演员页、搜索结果页',
-    note: '当前只认 .scramble-page > img，适配较旧，403 概率较高。',
+    note: '当前只认 .scramble-page > img，适配较老，403 概率较高。',
   },
   {
     name: '18Comic Mirror',
@@ -375,6 +419,7 @@ const linkTips: LinkTip[] = [
 
 const proxyUrl = ref('')
 const bandizipPath = ref('')
+const sourceRepoUrl = ref('')
 const jmCacheDir = ref('')
 const jmCacheRetentionHours = ref('24')
 const jmCacheSizeLimitMB = ref('2048')
@@ -384,10 +429,12 @@ const activeLibrary = ref('')
 const logInfo = ref<any>(null)
 const versionInfo = ref<VersionInfo | null>(null)
 const jmRuntimeInfo = ref<JmRuntimeInfo | null>(null)
+const sourceStorageInfo = ref<SourceStorageInfo | null>(null)
 
 async function refreshConfig() {
   proxyUrl.value = await GetProxy()
   bandizipPath.value = await GetBandizipPath()
+  sourceRepoUrl.value = await GetSourceRepoURL()
   jmCacheDir.value = await GetJmCacheDir()
   jmCacheRetentionHours.value = String(await GetJmCacheRetentionHours())
   jmCacheSizeLimitMB.value = String(await GetJmCacheSizeLimitMB())
@@ -411,6 +458,12 @@ async function refreshConfig() {
     jmRuntimeInfo.value = (await GetJmRuntimeInfo()) as JmRuntimeInfo
   } catch {
     jmRuntimeInfo.value = null
+  }
+
+  try {
+    sourceStorageInfo.value = (await GetSourceStorageInfo()) as SourceStorageInfo
+  } catch {
+    sourceStorageInfo.value = null
   }
 }
 
@@ -457,6 +510,48 @@ async function saveBandizipPath(event: Event) {
 
   toast.success('解压工具路径已保存')
   await refreshConfig()
+}
+
+async function saveSourceRepoUrl(event: Event) {
+  const ok = await SetSourceRepoURL((event.target as HTMLInputElement).value.trim())
+  if (!ok) return
+
+  toast.success('源仓库地址已保存')
+  await refreshConfig()
+}
+
+async function syncSourceRepo() {
+  const repoURL = sourceRepoUrl.value.trim()
+  if (!repoURL) {
+    toast.error('请先填写源仓库地址')
+    return
+  }
+
+  try {
+    const result = (await SyncSourceRepository(repoURL)) as SourceRepoSyncResult
+    toast.success('源仓库同步成功', {
+      description: `已同步 ${result.manifestCount} 个清单，${result.scriptCount} 个脚本`,
+    })
+    await refreshConfig()
+  } catch (error) {
+    toast.error('源仓库同步失败', {
+      description: error instanceof Error ? error.message : '请检查仓库地址或网络连接。',
+    })
+  }
+}
+
+async function reloadLocalSources() {
+  try {
+    const sources = await ReloadSources()
+    toast.success('本地源已重载', {
+      description: `当前共加载 ${sources.length} 个在线源`,
+    })
+    await refreshConfig()
+  } catch (error) {
+    toast.error('重载本地源失败', {
+      description: error instanceof Error ? error.message : '请稍后再试。',
+    })
+  }
 }
 
 async function saveJmCacheDir(event: Event) {

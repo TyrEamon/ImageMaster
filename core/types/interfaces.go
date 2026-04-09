@@ -74,6 +74,8 @@ type ConfigManager interface {
 	SetProxy(proxyURL string) bool
 	GetBandizipPath() string
 	SetBandizipPath(path string) bool
+	GetSourceRepoURL() string
+	SetSourceRepoURL(url string) bool
 	GetJmCacheDir() string
 	SetJmCacheDir(path string) bool
 	GetJmCacheRetentionHours() int

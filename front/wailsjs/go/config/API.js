@@ -38,6 +38,10 @@ export function GetProxy() {
   return window['go']['config']['API']['GetProxy']();
 }
 
+export function GetSourceRepoURL() {
+  return window['go']['config']['API']['GetSourceRepoURL']();
+}
+
 export function SetActiveLibrary(arg1) {
   return window['go']['config']['API']['SetActiveLibrary'](arg1);
 }
@@ -64,4 +68,8 @@ export function SetOutputDir() {
 
 export function SetProxy(arg1) {
   return window['go']['config']['API']['SetProxy'](arg1);
+}
+
+export function SetSourceRepoURL(arg1) {
+  return window['go']['config']['API']['SetSourceRepoURL'](arg1);
 }

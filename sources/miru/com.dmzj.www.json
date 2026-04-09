@@ -1,9 +1,10 @@
 ﻿{
     "id":  "miru-com-dmzj-www",
-    "adapter":  null,
+    "adapter":  "dmzj",
     "provider":  "miru",
-    "engine":  "catalog",
-    "enabled":  false,
+    "engine":  "script",
+    "script":  "../scripts/dmzj.js",
+    "enabled":  true,
     "builtIn":  false,
     "name":  "动漫之家",
     "type":  "manga",
@@ -18,9 +19,13 @@
     "capabilities":  [
                          "search",
                          "detail",
-                         "read"
+                         "read",
+                         "ranking"
                      ],
-    "description":  "Imported from Miru manga catalog. This is catalog metadata only for now; ImageMaster adapter/runtime wiring still needs to be implemented before it can be enabled.",
+    "rankingKinds":  [
+                         "latest"
+                     ],
+    "description":  "Imported from Miru manga catalog and now executed by the ImageMaster local JS source runtime.",
     "upstream":  "miru",
     "upstreamUrl":  "https://miru-repo.0n0.dev/index.json",
     "scriptUrl":  "https://miru-repo.0n0.dev/repo/com.dmzj.www.js",

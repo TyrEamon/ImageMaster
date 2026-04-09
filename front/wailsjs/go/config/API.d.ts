@@ -19,6 +19,8 @@ export function GetOutputDir():Promise<string>;
 
 export function GetProxy():Promise<string>;
 
+export function GetSourceRepoURL():Promise<string>;
+
 export function SetActiveLibrary(arg1:string):Promise<boolean>;
 
 export function SetBandizipPath(arg1:string):Promise<boolean>;
@@ -32,3 +34,5 @@ export function SetJmCacheSizeLimitMB(arg1:number):Promise<boolean>;
 export function SetOutputDir():Promise<boolean>;
 
 export function SetProxy(arg1:string):Promise<boolean>;
+
+export function SetSourceRepoURL(arg1:string):Promise<boolean>;

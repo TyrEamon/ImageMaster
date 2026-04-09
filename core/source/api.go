@@ -45,8 +45,48 @@ func (a *API) SetContext(ctx context.Context) {
 	}
 }
 
+func (a *API) reloadRegistry() {
+	a.registry = NewRegistry(a.configManager)
+	if a.ctx == nil {
+		return
+	}
+
+	for _, provider := range a.registry.providers {
+		if withContext, ok := provider.(interface{ SetContext(context.Context) }); ok {
+			withContext.SetContext(a.ctx)
+		}
+	}
+}
+
 func (a *API) ListSources() []Summary {
 	return a.registry.List()
+}
+
+func (a *API) ReloadSources() []Summary {
+	a.reloadRegistry()
+	return a.registry.List()
+}
+
+func (a *API) GetSourceStorageInfo() SourceStorageInfo {
+	return GetSourceStorageInfo()
+}
+
+func (a *API) SyncSourceRepository(repoURL string) (RepositorySyncResult, error) {
+	trimmed := strings.TrimSpace(repoURL)
+	if trimmed == "" && a.configManager != nil {
+		trimmed = strings.TrimSpace(a.configManager.GetSourceRepoURL())
+	}
+	if trimmed == "" {
+		return RepositorySyncResult{}, fmt.Errorf("source repository url is empty")
+	}
+
+	result, err := SyncSourceRepositoryFromRemote(trimmed)
+	if err != nil {
+		return RepositorySyncResult{}, err
+	}
+
+	a.reloadRegistry()
+	return result, nil
 }
 
 func (a *API) SearchSources(sourceID string, query string, page int) (SearchResult, error) {

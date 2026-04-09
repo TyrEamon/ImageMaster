@@ -3,6 +3,7 @@ package source
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"ImageMaster/core/types"
 )
@@ -18,6 +19,7 @@ func NewRegistry(configManager types.ConfigManager) *Registry {
 
 	builtIns := map[string]Provider{
 		"baozi":    NewBaoziSource(),
+		"dmzj":     NewDmzjSource(),
 		"mangadex": NewMangaDexSource(),
 		"jmcomic":  NewJmSource(configManager),
 	}
@@ -34,9 +36,22 @@ func NewRegistry(configManager types.ConfigManager) *Registry {
 			adapterID = manifest.ID
 		}
 
-		provider, ok := builtIns[adapterID]
-		if !ok {
-			continue
+		var provider Provider
+		var ok bool
+
+		switch strings.ToLower(strings.TrimSpace(manifest.Engine)) {
+		case "script", "js":
+			scriptProvider, err := NewScriptSource(manifest)
+			if err != nil {
+				continue
+			}
+			provider = scriptProvider
+			ok = true
+		default:
+			provider, ok = builtIns[adapterID]
+			if !ok {
+				continue
+			}
 		}
 
 		registry.Register(newWrappedProvider(provider, mergeSummary(provider.Summary(), manifest)))

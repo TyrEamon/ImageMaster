@@ -21,10 +21,22 @@ export function GetSourceRanking(arg1, arg2, arg3) {
   return window['go']['source']['API']['GetSourceRanking'](arg1, arg2, arg3)
 }
 
+export function GetSourceStorageInfo() {
+  return window['go']['source']['API']['GetSourceStorageInfo']()
+}
+
 export function DownloadSourceChapter(arg1, arg2) {
   return window['go']['source']['API']['DownloadSourceChapter'](arg1, arg2)
 }
 
 export function SearchSources(arg1, arg2, arg3) {
   return window['go']['source']['API']['SearchSources'](arg1, arg2, arg3)
+}
+
+export function ReloadSources() {
+  return window['go']['source']['API']['ReloadSources']()
+}
+
+export function SyncSourceRepository(arg1) {
+  return window['go']['source']['API']['SyncSourceRepository'](arg1)
 }

@@ -107,6 +107,12 @@ jobs:
           Copy-Item -Force "runtime/imagemaster-jm-runtime.exe" "build/bin/runtime/imagemaster-jm-runtime.exe"
           Copy-Item -Force "runtime/runtime-manifest.json" "build/bin/runtime/runtime-manifest.json"
 
+      - name: Bundle source manifests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "build/bin/sources" | Out-Null
+          Copy-Item -Recurse -Force "sources/*" "build/bin/sources"
+
       - name: Package release zip
         shell: pwsh
         run: |

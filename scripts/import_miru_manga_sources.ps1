@@ -50,6 +50,7 @@ function Convert-ToNullableBool {
 
 $adapterHints = @{
   'baozimh.com' = 'baozi'
+  'com.dmzj.www' = 'dmzj'
   'mangadex.org' = 'mangadex'
 }
 
@@ -76,12 +77,24 @@ foreach ($entry in $mangaSources) {
   }
   $usedFileNames[$fileStem] = $true
   $targetPath = Join-Path $resolvedOutputDir "$fileStem.json"
+  $adapterHint = $adapterHints[$package]
+  $capabilities = @('search', 'detail', 'read')
+  $rankingKinds = @()
+  $engine = 'catalog'
+
+  if ($adapterHint) {
+    $engine = 'adapter'
+    if ($adapterHint -eq 'dmzj') {
+      $capabilities = @('search', 'detail', 'read', 'ranking')
+      $rankingKinds = @('latest')
+    }
+  }
 
   $manifest = [ordered]@{
     id           = Convert-ToSourceId -Package $package
-    adapter      = $adapterHints[$package]
+    adapter      = $adapterHint
     provider     = 'miru'
-    engine       = 'catalog'
+    engine       = $engine
     enabled      = $false
     builtIn      = $false
     name         = [string]$entry.name
@@ -94,9 +107,10 @@ foreach ($entry in $mangaSources) {
     license      = [string]$entry.license
     icon         = [string]$entry.icon
     nsfw         = Convert-ToNullableBool -Value $entry.nsfw
-    capabilities = @('search', 'detail', 'read')
+    capabilities = $capabilities
+    rankingKinds = $rankingKinds
     description  = if ($adapterHints.ContainsKey($package)) {
-      "Imported from Miru manga catalog. This manifest already points at the current ImageMaster adapter hint '$($adapterHints[$package])', but stays disabled until you explicitly enable it."
+      "Imported from Miru manga catalog. This manifest already points at the current ImageMaster adapter hint '$adapterHint', but stays disabled until you explicitly enable it."
     } else {
       'Imported from Miru manga catalog. This is catalog metadata only for now; ImageMaster adapter/runtime wiring still needs to be implemented before it can be enabled.'
     }
