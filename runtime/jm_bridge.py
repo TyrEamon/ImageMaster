@@ -2,10 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import base64
 import json
+import mimetypes
 import os
 import re
+import shutil
 import sys
+import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -58,6 +63,22 @@ def normalize_list(value):
     if isinstance(value, str):
         return [part.strip() for part in value.split(",") if part.strip()]
     return [str(value).strip()] if str(value).strip() else []
+
+
+def data_url_from_file(file_path):
+    path = Path(file_path)
+    if not path.exists():
+        return ""
+
+    mime_type, _ = mimetypes.guess_type(path.name)
+    if not mime_type:
+        mime_type = "image/jpeg"
+
+    try:
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{mime_type};base64,{encoded}"
+    except Exception:
+        return ""
 
 
 def parse_target(target):
@@ -171,18 +192,94 @@ def get_properties(obj):
     return {}
 
 
-def normalize_search_page(page):
+def extract_cover_url(obj, props=None):
+    props = props or {}
+
+    candidates = []
+    for key in (
+        "cover",
+        "cover_url",
+        "image_url",
+        "img_url",
+        "image",
+        "album_image",
+        "thumb",
+        "thumbnail",
+    ):
+        value = props.get(key, "")
+        if value:
+            candidates.append(value)
+
+    for key in (
+        "cover",
+        "cover_url",
+        "image_url",
+        "img_url",
+        "image",
+        "album_image",
+        "thumb",
+        "thumbnail",
+    ):
+        value = safe_attr(obj, key, default="")
+        if value:
+            candidates.append(value)
+
+    for candidate in candidates:
+        value = str(candidate).strip()
+        if value.startswith("http://") or value.startswith("https://") or value.startswith("data:"):
+            return value
+
+    for key, value in props.items():
+        key_text = str(key).lower()
+        if "cover" not in key_text and "image" not in key_text:
+            continue
+        text = str(value).strip()
+        if text.startswith("http://") or text.startswith("https://") or text.startswith("data:"):
+            return text
+
+    return ""
+
+
+def ensure_album_cover(client, album_id, current_cover=""):
+    if current_cover:
+        return current_cover
+
+    album_id = str(album_id or "").strip()
+    if not album_id:
+        return ""
+
+    cache_dir = Path(tempfile.gettempdir()) / "imagemaster-jm-covers"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    for extension in ("jpg", "jpeg", "png", "webp"):
+        cached_path = cache_dir / f"{album_id}.{extension}"
+        if cached_path.exists():
+            cover = data_url_from_file(cached_path)
+            if cover:
+                return cover
+
+    target_path = cache_dir / f"{album_id}.jpg"
+    try:
+        client.download_album_cover(album_id, str(target_path))
+    except Exception:
+        return ""
+
+    return data_url_from_file(target_path)
+
+
+def normalize_search_page(page, client=None, enrich_cover_limit=0):
     items = []
 
     iterator = getattr(page, "iter_id_title_tag", None)
     if callable(iterator):
         try:
             for album_id, title, tags in iterator():
+                cover = ensure_album_cover(client, album_id) if client and len(items) < enrich_cover_limit else ""
                 items.append(
                     {
                         "id": str(album_id),
                         "title": str(title).strip(),
-                        "cover": "",
+                        "cover": cover,
                         "summary": " / ".join(normalize_list(tags)),
                         "primaryLabel": "JM",
                         "secondaryLabel": " / ".join(normalize_list(tags)),
@@ -194,23 +291,29 @@ def normalize_search_page(page):
             pass
 
     for raw in list(page):
+        props = get_properties(raw)
         if isinstance(raw, (list, tuple)) and len(raw) >= 2:
             album_id = str(raw[0]).strip()
             title = str(raw[1]).strip()
             tags = normalize_list(raw[2] if len(raw) > 2 else [])
+            cover = ""
         else:
             album_id = str(safe_attr(raw, "id", "album_id", default="")).strip()
             title = str(safe_attr(raw, "title", "name", default=str(raw))).strip()
             tags = normalize_list(safe_attr(raw, "tag_list", "tags", default=[]))
+            cover = extract_cover_url(raw, props)
 
         if not album_id or not title:
             continue
+
+        if not cover and client and len(items) < enrich_cover_limit:
+            cover = ensure_album_cover(client, album_id)
 
         items.append(
             {
                 "id": album_id,
                 "title": title,
-                "cover": "",
+                "cover": cover,
                 "summary": " / ".join(tags),
                 "primaryLabel": "JM",
                 "secondaryLabel": " / ".join(tags),
@@ -232,6 +335,7 @@ def normalize_album_detail(album):
         or safe_attr(album, "comment", "description", default="No summary available.")
     ).strip()
     album_id = str(props.get("album_id") or safe_attr(album, "album_id", "id", default="")).strip()
+    cover = extract_cover_url(album, props)
 
     tags = []
     for key in ("tag_list", "tags", "works", "actors"):
@@ -265,7 +369,7 @@ def normalize_album_detail(album):
         "item": {
             "id": album_id or safe_attr(album, "album_id", "id", default=""),
             "title": title or "Untitled",
-            "cover": "",
+            "cover": cover,
             "summary": summary or "No summary available.",
             "author": author or "Unknown",
             "status": status or "Unknown",
@@ -310,6 +414,71 @@ def normalize_photo_images(photo):
         "hasNext": False,
         "nextUrl": "",
     }
+
+
+def collect_image_files(root_dir):
+    root = Path(root_dir)
+    if not root.exists():
+        return []
+
+    valid_suffixes = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif"}
+    files = [path for path in root.rglob("*") if path.is_file() and path.suffix.lower() in valid_suffixes]
+    files.sort(key=lambda item: str(item.relative_to(root)).lower())
+    return [str(path.resolve()) for path in files]
+
+
+def resolve_reader_cache_root(configured_dir):
+    configured = str(configured_dir or "").strip()
+    if configured:
+        return Path(configured).expanduser()
+    return Path(tempfile.gettempdir()) / "imagemaster-jm-reader"
+
+
+def get_reader_cache_dir(cache_root, photo_id):
+    return Path(cache_root) / str(photo_id)
+
+
+def get_directory_mtime(directory):
+    try:
+        return directory.stat().st_mtime
+    except Exception:
+        return 0
+
+
+def calculate_directory_size(directory):
+    total_size = 0
+    try:
+        for path in directory.rglob("*"):
+            if path.is_file():
+                total_size += path.stat().st_size
+    except Exception:
+        return 0
+    return total_size
+
+
+def cleanup_reader_cache(cache_root, retention_hours, size_limit_mb):
+    cache_root = Path(cache_root)
+    cache_root.mkdir(parents=True, exist_ok=True)
+
+    now = time.time()
+    retention_seconds = max(int(retention_hours or 0), 1) * 3600
+    size_limit_bytes = max(int(size_limit_mb or 0), 1) * 1024 * 1024
+
+    chapter_dirs = [path for path in cache_root.iterdir() if path.is_dir()]
+
+    for chapter_dir in chapter_dirs:
+        last_modified = get_directory_mtime(chapter_dir)
+        if last_modified and now - last_modified > retention_seconds:
+            shutil.rmtree(chapter_dir, ignore_errors=True)
+
+    chapter_dirs = [path for path in cache_root.iterdir() if path.is_dir()]
+    chapter_dirs.sort(key=get_directory_mtime)
+
+    total_size = sum(calculate_directory_size(path) for path in chapter_dirs)
+    while total_size > size_limit_bytes and chapter_dirs:
+        oldest = chapter_dirs.pop(0)
+        total_size -= calculate_directory_size(oldest)
+        shutil.rmtree(oldest, ignore_errors=True)
 
 
 def run_download(target, output_dir, proxy_url):
@@ -373,7 +542,7 @@ def run_search(query, page, proxy_url):
         "total": 0,
         "items": [],
     }
-    items = normalize_search_page(search_page)
+    items = normalize_search_page(search_page, client=client, enrich_cover_limit=4)
     payload["items"] = items
     payload["total"] = len(items)
     emit({"type": "result", "payload": payload})
@@ -405,7 +574,7 @@ def run_ranking(kind, page, proxy_url):
     if ranking_page is None:
         return fail("unable to load ranking: " + " | ".join(errors))
 
-    items = normalize_search_page(ranking_page)
+    items = normalize_search_page(ranking_page, client=client, enrich_cover_limit=6)
     emit(
         {
             "type": "result",
@@ -445,12 +614,73 @@ def run_images(target, proxy_url):
     return 0
 
 
+def run_read_images(target, proxy_url, cache_dir, retention_hours, size_limit_mb):
+    try:
+        import jmcomic
+    except Exception as exc:
+        return fail(f"unable to import jmcomic: {exc}")
+
+    target_type, target_id = parse_target(target)
+    if target_type != "photo":
+        return fail("read-images currently expects a JM photo id or photo url")
+
+    option = create_option(os.getcwd(), proxy_url)
+    client = build_client(option)
+
+    try:
+        photo = client.get_photo_detail(target_id, False)
+    except TypeError:
+        photo = client.get_photo_detail(target_id)
+
+    payload = normalize_photo_images(photo)
+    cache_root = resolve_reader_cache_root(cache_dir)
+    cleanup_reader_cache(cache_root, retention_hours, size_limit_mb)
+
+    chapter_cache_dir = get_reader_cache_dir(cache_root, target_id)
+    ready_marker = chapter_cache_dir / ".ready"
+    image_files = collect_image_files(chapter_cache_dir)
+
+    if not image_files or not ready_marker.exists():
+        if chapter_cache_dir.exists():
+            shutil.rmtree(chapter_cache_dir, ignore_errors=True)
+        chapter_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        emit({"type": "status", "phase": "preparing", "message": "Prepare JM chapter cache"})
+        cache_option = create_option(str(chapter_cache_dir), proxy_url)
+
+        try:
+            jmcomic.download_photo(target_id, cache_option)
+        except Exception as exc:
+            return fail(f"jmcomic read cache failed: {exc}")
+
+        image_files = collect_image_files(chapter_cache_dir)
+        if not image_files:
+            return fail("JM read cache completed but no images were produced")
+
+        ready_marker.touch()
+    else:
+        ready_marker.touch()
+
+    try:
+        os.utime(chapter_cache_dir, None)
+    except Exception:
+        pass
+
+    payload["images"] = image_files
+    payload["entries"] = []
+    emit({"type": "result", "payload": payload})
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description="ImageMaster JM bridge")
     parser.add_argument("--action", required=True)
     parser.add_argument("--target", default="")
     parser.add_argument("--output", default="")
     parser.add_argument("--proxy", default="")
+    parser.add_argument("--cache-dir", default="")
+    parser.add_argument("--cache-retention-hours", type=int, default=24)
+    parser.add_argument("--cache-limit-mb", type=int, default=2048)
     parser.add_argument("--query", default="")
     parser.add_argument("--page", type=int, default=1)
     parser.add_argument("--kind", default="week")
@@ -469,6 +699,14 @@ def main():
         return run_detail(args.target, args.proxy)
     if args.action == "images":
         return run_images(args.target, args.proxy)
+    if args.action == "read-images":
+        return run_read_images(
+            args.target,
+            args.proxy,
+            args.cache_dir,
+            args.cache_retention_hours,
+            args.cache_limit_mb,
+        )
 
     return fail(f"unsupported action: {args.action}")
 

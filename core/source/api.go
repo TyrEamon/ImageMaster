@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"ImageMaster/core/download"
+	"ImageMaster/core/jmbridge"
 	"ImageMaster/core/types"
 	"ImageMaster/core/utils"
 )
@@ -52,6 +54,9 @@ func (a *API) GetSourceDetail(sourceID string, itemID string) (DetailResult, err
 }
 
 func (a *API) GetSourceImages(sourceID string, chapterID string) (ImageResult, error) {
+	if sourceID == "jmcomic" {
+		return a.getJMReadableImages(chapterID)
+	}
 	return a.registry.Images(sourceID, chapterID)
 }
 
@@ -70,6 +75,10 @@ func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (Download
 	}
 	if rootDir == "" {
 		return DownloadChapterResult{}, fmt.Errorf("no active library or output directory is configured")
+	}
+
+	if sourceID == "jmcomic" {
+		return a.downloadJMChapter(rootDir, chapterID)
 	}
 
 	imageResult, err := a.registry.Images(sourceID, chapterID)
@@ -144,6 +153,87 @@ func (a *API) DownloadSourceChapter(sourceID string, chapterID string) (Download
 	}, nil
 }
 
+func (a *API) downloadJMChapter(rootDir string, chapterID string) (DownloadChapterResult, error) {
+	imageResult, err := a.registry.Images("jmcomic", chapterID)
+	if err != nil {
+		return DownloadChapterResult{}, err
+	}
+
+	proxy := ""
+	if a.configManager != nil {
+		proxy = strings.TrimSpace(a.configManager.GetProxy())
+	}
+
+	saveDir, err := jmbridge.Download(a.ctx, nil, chapterID, rootDir, proxy)
+	if err != nil {
+		return DownloadChapterResult{}, err
+	}
+
+	fileCount, err := countFilesInDir(saveDir)
+	if err != nil {
+		return DownloadChapterResult{}, err
+	}
+
+	return DownloadChapterResult{
+		Source:       imageResult.Source,
+		ComicTitle:   imageResult.ComicTitle,
+		ChapterTitle: imageResult.ChapterTitle,
+		SaveDir:      saveDir,
+		FileCount:    fileCount,
+	}, nil
+}
+
+func (a *API) getJMReadableImages(chapterID string) (ImageResult, error) {
+	proxy := ""
+	cacheDir := ""
+	retentionHours := 24
+	sizeLimitMB := 2048
+	if a.configManager != nil {
+		proxy = strings.TrimSpace(a.configManager.GetProxy())
+		cacheDir = strings.TrimSpace(a.configManager.GetJmCacheDir())
+		retentionHours = a.configManager.GetJmCacheRetentionHours()
+		sizeLimitMB = a.configManager.GetJmCacheSizeLimitMB()
+	}
+
+	result, err := jmbridge.ReadableImages(a.ctx, chapterID, proxy, cacheDir, retentionHours, sizeLimitMB)
+	if err != nil {
+		return ImageResult{}, err
+	}
+
+	entries := make([]ImageEntry, 0, len(result.Entries))
+	for _, entry := range result.Entries {
+		entries = append(entries, ImageEntry{
+			URL:     strings.TrimSpace(entry.URL),
+			Referer: strings.TrimSpace(entry.Referer),
+			Headers: cloneHeaders(entry.Headers),
+		})
+	}
+
+	summary, summaryErr := a.registry.GetSummary("jmcomic")
+	if summaryErr == nil {
+		return ImageResult{
+			Source:       summary,
+			ComicTitle:   result.ComicTitle,
+			ChapterTitle: result.ChapterTitle,
+			ChapterURL:   result.ChapterURL,
+			Images:       result.Images,
+			Entries:      entries,
+			HasNext:      result.HasNext,
+			NextURL:      result.NextURL,
+		}, nil
+	}
+
+	return ImageResult{
+		ComicTitle:   result.ComicTitle,
+		ChapterTitle: result.ChapterTitle,
+		ChapterURL:   result.ChapterURL,
+		Images:       result.Images,
+		Entries:      entries,
+		HasNext:      result.HasNext,
+		NextURL:      result.NextURL,
+	}, nil
+}
+
 func sanitizeSegment(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -184,4 +274,31 @@ func guessImageExtension(rawURL string) string {
 	default:
 		return ".jpg"
 	}
+}
+
+func countFilesInDir(targetDir string) (int, error) {
+	info, err := os.Stat(targetDir)
+	if err != nil {
+		return 0, fmt.Errorf("failed to inspect download directory: %w", err)
+	}
+	if !info.IsDir() {
+		return 0, nil
+	}
+
+	count := 0
+	err = filepath.Walk(targetDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if info == nil || info.IsDir() {
+			return nil
+		}
+		count++
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to count downloaded files: %w", err)
+	}
+
+	return count, nil
 }

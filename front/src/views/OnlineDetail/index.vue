@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen overflow-auto px-8 py-6">
+  <div class="min-h-screen overflow-y-auto px-8 py-6">
     <section class="mb-6 rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6">
       <div class="mb-6 flex flex-wrap items-center gap-3">
         <button
@@ -43,10 +43,10 @@
             <h1 class="text-3xl font-semibold text-white">{{ detail.item.title }}</h1>
             <div class="mt-3 flex flex-wrap gap-2">
               <span class="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-200">
-                作者：{{ detail.item.author }}
+                作者：{{ detail.item.author || '未知' }}
               </span>
               <span class="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-200">
-                状态：{{ detail.item.status }}
+                状态：{{ detail.item.status || '未知' }}
               </span>
               <span
                 v-for="tag in detail.item.tags"
@@ -59,7 +59,7 @@
           </div>
 
           <p class="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 text-sm leading-7 text-neutral-300">
-            {{ detail.item.summary }}
+            {{ detail.item.summary || '暂无简介' }}
           </p>
 
           <div class="flex flex-wrap gap-3">
@@ -171,32 +171,36 @@ interface DetailResult {
   item: DetailItem
 }
 
+function createEmptyDetailResult(): DetailResult {
+  return {
+    source: {
+      id: '',
+      name: '',
+      type: '',
+      language: '',
+      website: '',
+      description: '',
+    },
+    item: {
+      id: '',
+      title: '',
+      cover: '',
+      summary: '',
+      author: '',
+      status: '',
+      tags: [],
+      detailUrl: '',
+      chapters: [],
+    },
+  }
+}
+
 const route = useRoute()
 const router = useRouter()
 const libraryMetaStore = useLibraryMetaStore()
 const loading = ref(false)
 const errorMessage = ref('')
-const detail = ref<DetailResult>({
-  source: {
-    id: '',
-    name: '',
-    type: '',
-    language: '',
-    website: '',
-    description: '',
-  },
-  item: {
-    id: '',
-    title: '',
-    cover: '',
-    summary: '',
-    author: '',
-    status: '',
-    tags: [],
-    detailUrl: '',
-    chapters: [],
-  },
-})
+const detail = ref<DetailResult>(createEmptyDetailResult())
 
 const sourceId = computed(() => String(route.query.source ?? '').trim())
 const itemId = computed(() => String(route.query.id ?? '').trim())

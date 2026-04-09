@@ -1,0 +1,17 @@
+{
+  "id": "baozi",
+  "adapter": "baozi",
+  "enabled": true,
+  "name": "包子漫画",
+  "type": "manga",
+  "language": "zh",
+  "website": "https://www.baozimh.com",
+  "version": "0.1.0",
+  "builtIn": true,
+  "capabilities": [
+    "search",
+    "detail",
+    "read"
+  ],
+  "description": "本地外置描述文件，当前映射到内置的 Baozi 适配器。后面可以继续扩成独立源仓库。"
+}

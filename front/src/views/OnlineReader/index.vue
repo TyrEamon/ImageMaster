@@ -57,6 +57,10 @@
         />
       </div>
 
+      <div v-if="imageResult.images.length === 0" class="py-8 text-sm text-neutral-500">
+        当前章节还没有返回图片。
+      </div>
+
       <div class="mt-4 flex flex-wrap justify-center gap-3 pb-6">
         <a
           v-if="imageResult.chapterUrl"
@@ -114,27 +118,31 @@ interface DownloadChapterResult {
   fileCount: number
 }
 
+function createEmptyImageResult(): ImageResult {
+  return {
+    source: {
+      id: '',
+      name: '',
+      type: '',
+      language: '',
+      website: '',
+      description: '',
+    },
+    comicTitle: '',
+    chapterTitle: '',
+    chapterUrl: '',
+    images: [],
+    hasNext: false,
+    nextUrl: '',
+  }
+}
+
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const downloading = ref(false)
 const errorMessage = ref('')
-const imageResult = ref<ImageResult>({
-  source: {
-    id: '',
-    name: '',
-    type: '',
-    language: '',
-    website: '',
-    description: '',
-  },
-  comicTitle: '',
-  chapterTitle: '',
-  chapterUrl: '',
-  images: [],
-  hasNext: false,
-  nextUrl: '',
-})
+const imageResult = ref<ImageResult>(createEmptyImageResult())
 
 const sourceId = computed(() => String(route.query.source ?? '').trim())
 const chapterId = computed(() => String(route.query.chapter ?? '').trim())
@@ -175,10 +183,13 @@ async function downloadCurrentChapter() {
 
   downloading.value = true
   try {
-    const result = (await DownloadSourceChapter(sourceId.value, chapterId.value)) as DownloadChapterResult
+    const result = (await DownloadSourceChapter(
+      sourceId.value,
+      chapterId.value,
+    )) as DownloadChapterResult
     await LoadActiveLibrary()
     toast.success('章节已下载到本地漫画库', {
-      description: `${result.chapterTitle} · ${result.fileCount} 张`,
+      description: `${result.chapterTitle} · ${result.fileCount} 个文件`,
     })
   } catch (error) {
     toast.error(error instanceof Error ? error.message : '下载章节失败，请稍后再试。')

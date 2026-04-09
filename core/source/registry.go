@@ -16,9 +16,40 @@ func NewRegistry(configManager types.ConfigManager) *Registry {
 		providers: map[string]Provider{},
 	}
 
-	registry.Register(NewBaoziSource())
-	registry.Register(NewMangaDexSource())
-	registry.Register(NewJmSource(configManager))
+	builtIns := map[string]Provider{
+		"baozi":    NewBaoziSource(),
+		"mangadex": NewMangaDexSource(),
+		"jmcomic":  NewJmSource(configManager),
+	}
+
+	registered := map[string]struct{}{}
+	for _, manifest := range loadSourceManifests() {
+		enabled := manifest.Enabled == nil || *manifest.Enabled
+		if !enabled {
+			continue
+		}
+
+		adapterID := manifest.Adapter
+		if adapterID == "" {
+			adapterID = manifest.ID
+		}
+
+		provider, ok := builtIns[adapterID]
+		if !ok {
+			continue
+		}
+
+		registry.Register(newWrappedProvider(provider, mergeSummary(provider.Summary(), manifest)))
+		registered[adapterID] = struct{}{}
+	}
+
+	for id, provider := range builtIns {
+		if _, ok := registered[id]; ok {
+			continue
+		}
+		registry.Register(provider)
+	}
+
 	return registry
 }
 
@@ -41,6 +72,15 @@ func (r *Registry) List() []Summary {
 	})
 
 	return summaries
+}
+
+func (r *Registry) GetSummary(sourceID string) (Summary, error) {
+	provider, ok := r.providers[sourceID]
+	if !ok {
+		return Summary{}, fmt.Errorf("source not found: %s", sourceID)
+	}
+
+	return provider.Summary(), nil
 }
 
 func (r *Registry) Search(sourceID string, query string, page int) (SearchResult, error) {

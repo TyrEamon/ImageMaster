@@ -16,19 +16,25 @@ var _ types.ConfigProvider = (*Manager)(nil)
 var _ types.ConfigManager = (*Manager)(nil)
 
 var defaultConfig = Config{
-	Libraries:     []string{},
-	OutputDir:     "",
-	ProxyURL:      "",
-	BandizipPath:  "",
-	ActiveLibrary: "",
+	Libraries:             []string{},
+	OutputDir:             "",
+	ProxyURL:              "",
+	BandizipPath:          "",
+	JmCacheDir:            "",
+	JmCacheRetentionHours: 24,
+	JmCacheSizeLimitMB:    2048,
+	ActiveLibrary:         "",
 }
 
 type Config struct {
-	Libraries     []string `json:"libraries"`
-	OutputDir     string   `json:"output_dir"`
-	ProxyURL      string   `json:"proxy_url"`
-	BandizipPath  string   `json:"bandizip_path"`
-	ActiveLibrary string   `json:"active_library"`
+	Libraries             []string `json:"libraries"`
+	OutputDir             string   `json:"output_dir"`
+	ProxyURL              string   `json:"proxy_url"`
+	BandizipPath          string   `json:"bandizip_path"`
+	JmCacheDir            string   `json:"jm_cache_dir"`
+	JmCacheRetentionHours int      `json:"jm_cache_retention_hours"`
+	JmCacheSizeLimitMB    int      `json:"jm_cache_size_limit_mb"`
+	ActiveLibrary         string   `json:"active_library"`
 }
 
 type Manager struct {
@@ -71,11 +77,15 @@ func (m *Manager) LoadConfig() bool {
 		return false
 	}
 
+	m.normalizeConfig()
+
 	logger.Debug("Config loaded successfully")
 	return true
 }
 
 func (m *Manager) SaveConfig() bool {
+	m.normalizeConfig()
+
 	data, err := json.Marshal(m.config)
 	if err != nil {
 		logger.Error("Failed to marshal config: %v", err)
@@ -177,4 +187,52 @@ func (m *Manager) SetBandizipPath(path string) bool {
 
 func (m *Manager) GetBandizipPath() string {
 	return m.config.BandizipPath
+}
+
+func (m *Manager) SetJmCacheDir(path string) bool {
+	m.config.JmCacheDir = path
+	logger.Debug("Set JM cache dir: %s", path)
+	return m.SaveConfig()
+}
+
+func (m *Manager) GetJmCacheDir() string {
+	return m.config.JmCacheDir
+}
+
+func (m *Manager) SetJmCacheRetentionHours(hours int) bool {
+	m.config.JmCacheRetentionHours = hours
+	logger.Debug("Set JM cache retention hours: %d", hours)
+	return m.SaveConfig()
+}
+
+func (m *Manager) GetJmCacheRetentionHours() int {
+	if m.config.JmCacheRetentionHours <= 0 {
+		return defaultConfig.JmCacheRetentionHours
+	}
+	return m.config.JmCacheRetentionHours
+}
+
+func (m *Manager) SetJmCacheSizeLimitMB(limit int) bool {
+	m.config.JmCacheSizeLimitMB = limit
+	logger.Debug("Set JM cache size limit MB: %d", limit)
+	return m.SaveConfig()
+}
+
+func (m *Manager) GetJmCacheSizeLimitMB() int {
+	if m.config.JmCacheSizeLimitMB <= 0 {
+		return defaultConfig.JmCacheSizeLimitMB
+	}
+	return m.config.JmCacheSizeLimitMB
+}
+
+func (m *Manager) normalizeConfig() {
+	if m.config.Libraries == nil {
+		m.config.Libraries = []string{}
+	}
+	if m.config.JmCacheRetentionHours <= 0 {
+		m.config.JmCacheRetentionHours = defaultConfig.JmCacheRetentionHours
+	}
+	if m.config.JmCacheSizeLimitMB <= 0 {
+		m.config.JmCacheSizeLimitMB = defaultConfig.JmCacheSizeLimitMB
+	}
 }

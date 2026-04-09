@@ -48,6 +48,30 @@ func (a *API) SetBandizipPath(path string) bool {
 	return a.manager.SetBandizipPath(path)
 }
 
+func (a *API) GetJmCacheDir() string {
+	return a.manager.GetJmCacheDir()
+}
+
+func (a *API) SetJmCacheDir(path string) bool {
+	return a.manager.SetJmCacheDir(path)
+}
+
+func (a *API) GetJmCacheRetentionHours() int {
+	return a.manager.GetJmCacheRetentionHours()
+}
+
+func (a *API) SetJmCacheRetentionHours(hours int) bool {
+	return a.manager.SetJmCacheRetentionHours(hours)
+}
+
+func (a *API) GetJmCacheSizeLimitMB() int {
+	return a.manager.GetJmCacheSizeLimitMB()
+}
+
+func (a *API) SetJmCacheSizeLimitMB(limit int) bool {
+	return a.manager.SetJmCacheSizeLimitMB(limit)
+}
+
 func (a *API) GetLibraries() []string {
 	return a.manager.GetLibraries()
 }

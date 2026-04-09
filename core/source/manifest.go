@@ -1,0 +1,204 @@
+package source
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+)
+
+type manifestIndex struct {
+	Version string   `json:"version"`
+	Sources []string `json:"sources"`
+}
+
+type SourceManifest struct {
+	ID           string   `json:"id"`
+	Adapter      string   `json:"adapter"`
+	Name         string   `json:"name"`
+	Type         string   `json:"type"`
+	Language     string   `json:"language"`
+	Website      string   `json:"website"`
+	Version      string   `json:"version"`
+	Enabled      *bool    `json:"enabled"`
+	BuiltIn      *bool    `json:"builtIn"`
+	Capabilities []string `json:"capabilities"`
+	RankingKinds []string `json:"rankingKinds"`
+	Description  string   `json:"description"`
+	ManifestPath string   `json:"-"`
+}
+
+func loadSourceManifests() []SourceManifest {
+	sourceDir := resolveSourcesDir()
+	if sourceDir == "" {
+		return nil
+	}
+
+	indexPath := filepath.Join(sourceDir, "index.json")
+	manifestPaths := make([]string, 0, 8)
+
+	if isFile(indexPath) {
+		manifestPaths = append(manifestPaths, readManifestPathsFromIndex(sourceDir, indexPath)...)
+	} else {
+		manifestPaths = append(manifestPaths, scanManifestPaths(sourceDir)...)
+	}
+
+	seen := make(map[string]struct{}, len(manifestPaths))
+	manifests := make([]SourceManifest, 0, len(manifestPaths))
+	for _, manifestPath := range manifestPaths {
+		clean := filepath.Clean(strings.TrimSpace(manifestPath))
+		if clean == "" {
+			continue
+		}
+		if _, ok := seen[clean]; ok {
+			continue
+		}
+		seen[clean] = struct{}{}
+
+		manifest, ok := readManifest(clean)
+		if !ok {
+			continue
+		}
+		manifests = append(manifests, manifest)
+	}
+
+	sort.Slice(manifests, func(i, j int) bool {
+		return manifests[i].ID < manifests[j].ID
+	})
+
+	return manifests
+}
+
+func resolveSourcesDir() string {
+	candidates := []string{}
+	if exePath, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exePath), "sources"))
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(cwd, "sources"))
+	}
+
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+
+	return ""
+}
+
+func readManifestPathsFromIndex(sourceDir string, indexPath string) []string {
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		return nil
+	}
+
+	var index manifestIndex
+	if err := json.Unmarshal(data, &index); err != nil {
+		return nil
+	}
+
+	paths := make([]string, 0, len(index.Sources))
+	for _, item := range index.Sources {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		paths = append(paths, filepath.Join(sourceDir, item))
+	}
+
+	return paths
+}
+
+func scanManifestPaths(sourceDir string) []string {
+	entries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		return nil
+	}
+
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(strings.ToLower(name), ".json") || strings.EqualFold(name, "index.json") {
+			continue
+		}
+		paths = append(paths, filepath.Join(sourceDir, name))
+	}
+
+	sort.Strings(paths)
+	return paths
+}
+
+func readManifest(path string) (SourceManifest, bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return SourceManifest{}, false
+	}
+
+	var manifest SourceManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return SourceManifest{}, false
+	}
+
+	manifest.ID = strings.TrimSpace(manifest.ID)
+	manifest.Adapter = strings.TrimSpace(manifest.Adapter)
+	manifest.Name = strings.TrimSpace(manifest.Name)
+	manifest.Type = strings.TrimSpace(manifest.Type)
+	manifest.Language = strings.TrimSpace(manifest.Language)
+	manifest.Website = strings.TrimSpace(manifest.Website)
+	manifest.Version = strings.TrimSpace(manifest.Version)
+	manifest.Description = strings.TrimSpace(manifest.Description)
+	manifest.ManifestPath = path
+
+	if manifest.ID == "" {
+		return SourceManifest{}, false
+	}
+
+	return manifest, true
+}
+
+func isFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func mergeSummary(base Summary, manifest SourceManifest) Summary {
+	summary := base
+
+	if manifest.ID != "" {
+		summary.ID = manifest.ID
+	}
+	if manifest.Name != "" {
+		summary.Name = manifest.Name
+	}
+	if manifest.Type != "" {
+		summary.Type = manifest.Type
+	}
+	if manifest.Language != "" {
+		summary.Language = manifest.Language
+	}
+	if manifest.Website != "" {
+		summary.Website = manifest.Website
+	}
+	if manifest.Version != "" {
+		summary.Version = manifest.Version
+	}
+	if manifest.BuiltIn != nil {
+		summary.BuiltIn = *manifest.BuiltIn
+	}
+	if len(manifest.Capabilities) > 0 {
+		summary.Capabilities = append([]string{}, manifest.Capabilities...)
+	}
+	if len(manifest.RankingKinds) > 0 {
+		summary.RankingKinds = append([]string{}, manifest.RankingKinds...)
+	}
+	if manifest.Description != "" {
+		summary.Description = manifest.Description
+	}
+
+	return summary
+}

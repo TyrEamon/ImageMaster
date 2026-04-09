@@ -14,6 +14,18 @@ export function GetBandizipPath() {
   return window['go']['config']['API']['GetBandizipPath']();
 }
 
+export function GetJmCacheDir() {
+  return window['go']['config']['API']['GetJmCacheDir']();
+}
+
+export function GetJmCacheRetentionHours() {
+  return window['go']['config']['API']['GetJmCacheRetentionHours']();
+}
+
+export function GetJmCacheSizeLimitMB() {
+  return window['go']['config']['API']['GetJmCacheSizeLimitMB']();
+}
+
 export function GetLibraries() {
   return window['go']['config']['API']['GetLibraries']();
 }
@@ -32,6 +44,18 @@ export function SetActiveLibrary(arg1) {
 
 export function SetBandizipPath(arg1) {
   return window['go']['config']['API']['SetBandizipPath'](arg1);
+}
+
+export function SetJmCacheDir(arg1) {
+  return window['go']['config']['API']['SetJmCacheDir'](arg1);
+}
+
+export function SetJmCacheRetentionHours(arg1) {
+  return window['go']['config']['API']['SetJmCacheRetentionHours'](arg1);
+}
+
+export function SetJmCacheSizeLimitMB(arg1) {
+  return window['go']['config']['API']['SetJmCacheSizeLimitMB'](arg1);
 }
 
 export function SetOutputDir() {

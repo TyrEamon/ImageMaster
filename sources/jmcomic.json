@@ -1,0 +1,23 @@
+{
+  "id": "jmcomic",
+  "adapter": "jmcomic",
+  "enabled": true,
+  "name": "JM漫画",
+  "type": "manga",
+  "language": "zh",
+  "website": "https://18comic.vip",
+  "version": "0.1.0",
+  "builtIn": true,
+  "capabilities": [
+    "search",
+    "detail",
+    "read",
+    "ranking"
+  ],
+  "rankingKinds": [
+    "week",
+    "month",
+    "day"
+  ],
+  "description": "本地外置描述文件，当前映射到内置的 JM 适配器和 runtime。后面可以独立更新源描述与运行时。"
+}

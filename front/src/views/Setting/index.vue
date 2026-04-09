@@ -1,18 +1,18 @@
 <template>
   <div class="flex flex-col gap-8 p-8 text-white">
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
       <div class="text-xl">下载目录</div>
       <div class="flex gap-4">
         <Input
           v-model="downloadDir"
           class="flex-1 cursor-pointer"
-          placeholder="请选择下载目录"
+          placeholder="点击选择下载目录"
           @click="changeOutputDir"
         />
       </div>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
       <div class="text-xl">漫画库</div>
       <div class="flex flex-wrap gap-2">
         <div v-for="library in libraries" :key="library" class="flex items-center gap-2">
@@ -30,40 +30,86 @@
           添加漫画库
         </button>
       </div>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
       <div class="text-xl">代理设置</div>
       <div class="flex gap-4">
         <Input
           v-model="proxyUrl"
           class="flex-1"
-          placeholder="请输入代理地址，例如 http://127.0.0.1:10808"
+          placeholder="例如 http://127.0.0.1:10808"
           @blur="saveProxy"
         />
       </div>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
       <div class="text-xl">解压设置</div>
       <div class="flex gap-4">
         <Input
           v-model="bandizipPath"
           class="flex-1"
-          placeholder="请输入 bz.exe 路径，留空则自动检测常见安装位置"
+          placeholder="输入 bz.exe 路径，留空则自动检测常见安装位置"
           @blur="saveBandizipPath"
         />
       </div>
       <div class="text-xs leading-6 text-neutral-400">
         当前解压功能依赖外部 Bandizip 控制台工具。推荐填写类似
         <span class="select-all text-neutral-200">D:\bandizip\bz.exe</span>
-        的可执行文件路径；如果填的是 <span class="select-all text-neutral-200">Bandizip.exe</span
-        >，软件会自动尝试同目录下的 <span class="select-all text-neutral-200">bz.exe</span
-        >；如果留空，软件会尝试自动检测常见安装位置。
+        的可执行文件路径；如果填的是
+        <span class="select-all text-neutral-200">Bandizip.exe</span>
+        ，软件会自动尝试同目录下的
+        <span class="select-all text-neutral-200">bz.exe</span>
+        。留空时会自动检测常见安装位置。
       </div>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
+      <div class="text-xl">JM 在线缓存</div>
+      <div class="rounded-2xl border border-neutral-300/20 bg-neutral-900/40 p-4">
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="md:col-span-2">
+            <Input
+              v-model="jmCacheDir"
+              class="w-full"
+              placeholder="留空则使用系统临时目录；也可以改到 D:\\ImageMasterCache\\jm-reader"
+              @blur="saveJmCacheDir"
+            />
+          </div>
+
+          <Input
+            v-model="jmCacheRetentionHours"
+            type="number"
+            min="1"
+            help="保留时长（小时）"
+            placeholder="24"
+            @blur="saveJmCacheRetentionHours"
+          />
+
+          <Input
+            v-model="jmCacheSizeLimitMB"
+            type="number"
+            min="128"
+            step="128"
+            help="总缓存上限（MB）"
+            placeholder="2048"
+            @blur="saveJmCacheSizeLimitMB"
+          />
+        </div>
+
+        <div class="mt-4 text-xs leading-6 text-neutral-400">
+          JM 在线阅读会先把当前章节解到临时缓存，再交给软件显示。默认使用系统临时目录，通常在
+          <span class="text-neutral-200">C:\Users\你的用户名\AppData\Local\Temp</span>
+          。如果你不想占用 C 盘，可以把缓存目录改到 D 盘或任意自定义路径。
+        </div>
+        <div class="mt-2 text-xs leading-6 text-neutral-400">
+          清理规则是：先删超出保留时长的旧章节缓存；如果总大小仍然超出上限，再按最旧缓存继续删除。
+        </div>
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-4">
       <div class="text-xl">日志</div>
       <div class="flex flex-col gap-2 text-neutral-300/90">
         <div>目录：<span class="select-all">{{ logInfo?.dir || '-' }}</span></div>
@@ -84,9 +130,9 @@
           复制日志目录
         </button>
       </div>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
       <div class="text-xl">Links Tips</div>
       <div class="rounded-2xl border border-neutral-300/20 bg-neutral-900/40 p-4">
         <div class="mb-3 text-sm text-neutral-400">
@@ -124,9 +170,9 @@
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
       <div class="text-xl">Version</div>
       <div class="rounded-2xl border border-neutral-300/20 bg-neutral-900/40 p-4">
         <div class="flex flex-col gap-2 text-neutral-300/90">
@@ -143,15 +189,21 @@
           </button>
           <button
             class="rounded-2xl border border-neutral-300/50 px-4 py-2"
-            @click="copyText(versionInfo ? `${versionInfo.display} | ${versionInfo.commit} | ${versionInfo.buildTime || 'no-build-time'}` : '')"
+            @click="
+              copyText(
+                versionInfo
+                  ? `${versionInfo.display} | ${versionInfo.commit} | ${versionInfo.buildTime || 'no-build-time'}`
+                  : '',
+              )
+            "
           >
             Copy Build Info
           </button>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4">
       <div class="text-xl">JM Runtime</div>
       <div class="rounded-2xl border border-neutral-300/20 bg-neutral-900/40 p-4">
         <div class="flex flex-col gap-2 text-neutral-300/90">
@@ -181,30 +233,41 @@
           </button>
           <button
             class="rounded-2xl border border-neutral-300/50 px-4 py-2"
-            @click="copyText(jmRuntimeInfo ? `${jmRuntimeInfo.name} | ${jmRuntimeInfo.version} | ${jmRuntimeInfo.source || 'unknown'}` : '')"
+            @click="
+              copyText(
+                jmRuntimeInfo
+                  ? `${jmRuntimeInfo.name} | ${jmRuntimeInfo.version} | ${jmRuntimeInfo.source || 'unknown'}`
+                  : '',
+              )
+            "
           >
             Copy Runtime Info
           </button>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { Input } from '@/components'
-import { debounce } from '@/utils'
 import { onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   AddLibrary,
   GetActiveLibrary,
   GetBandizipPath,
+  GetJmCacheDir,
+  GetJmCacheRetentionHours,
+  GetJmCacheSizeLimitMB,
   GetLibraries,
   GetOutputDir,
   GetProxy,
   SetActiveLibrary,
   SetBandizipPath,
+  SetJmCacheDir,
+  SetJmCacheRetentionHours,
+  SetJmCacheSizeLimitMB,
   SetOutputDir,
   SetProxy,
 } from '../../../wailsjs/go/config/API'
@@ -245,7 +308,7 @@ const linkTips: LinkTip[] = [
     name: 'E-Hentai',
     template: 'https://e-hentai.org/g/{gallery-id}/{token}/',
     pageType: '具体 gallery 页',
-    avoid: '首页、搜索结果页、tag 页、收藏列表页',
+    avoid: '首页、搜索结果页、Tag 页、收藏列表页',
     note: '程序会继续翻分页并解析每张图的真实地址。',
   },
   {
@@ -267,7 +330,7 @@ const linkTips: LinkTip[] = [
     template: 'https://telegraph.com/{slug}',
     pageType: '具体文章页',
     avoid: '首页、非文章落地页',
-    note: '代码里注册了这个域名，但实战上 telegra.ph 更常见。',
+    note: '代码里注册了这个域名，但实战中 telegra.ph 更常见。',
   },
   {
     name: 'WNACG',
@@ -287,7 +350,7 @@ const linkTips: LinkTip[] = [
     name: 'Hitomi',
     template: 'https://hitomi.la/{category}/{slug}-{id}.html',
     pageType: '具体作品 html 页，结尾需像 -123456.html',
-    avoid: '首页、tag 页、系列列表页',
+    avoid: '首页、Tag 页、系列列表页',
     note: '程序会从作品 ID 生成真实图片地址，并带 Referer 下载。',
   },
   {
@@ -308,6 +371,9 @@ const linkTips: LinkTip[] = [
 
 const proxyUrl = ref('')
 const bandizipPath = ref('')
+const jmCacheDir = ref('')
+const jmCacheRetentionHours = ref('24')
+const jmCacheSizeLimitMB = ref('2048')
 const downloadDir = ref('')
 const libraries = ref<string[]>([])
 const activeLibrary = ref('')
@@ -315,21 +381,12 @@ const logInfo = ref<any>(null)
 const versionInfo = ref<VersionInfo | null>(null)
 const jmRuntimeInfo = ref<JmRuntimeInfo | null>(null)
 
-const saveProxy = debounce((e: Event) => {
-  SetProxy((e.target as HTMLInputElement).value).then(() => {
-    void refreshConfig()
-  })
-}, 1000)
-
-const saveBandizipPath = debounce((e: Event) => {
-  SetBandizipPath((e.target as HTMLInputElement).value.trim()).then(() => {
-    void refreshConfig()
-  })
-}, 1000)
-
 async function refreshConfig() {
   proxyUrl.value = await GetProxy()
   bandizipPath.value = await GetBandizipPath()
+  jmCacheDir.value = await GetJmCacheDir()
+  jmCacheRetentionHours.value = String(await GetJmCacheRetentionHours())
+  jmCacheSizeLimitMB.value = String(await GetJmCacheSizeLimitMB())
   downloadDir.value = await GetOutputDir()
   libraries.value = await GetLibraries()
   activeLibrary.value = await GetActiveLibrary()
@@ -382,9 +439,56 @@ async function addLibrary() {
   }
 }
 
+async function saveProxy(event: Event) {
+  const ok = await SetProxy((event.target as HTMLInputElement).value.trim())
+  if (!ok) return
+
+  toast.success('代理已保存')
+  await refreshConfig()
+}
+
+async function saveBandizipPath(event: Event) {
+  const ok = await SetBandizipPath((event.target as HTMLInputElement).value.trim())
+  if (!ok) return
+
+  toast.success('解压工具路径已保存')
+  await refreshConfig()
+}
+
+async function saveJmCacheDir(event: Event) {
+  const ok = await SetJmCacheDir((event.target as HTMLInputElement).value.trim())
+  if (!ok) return
+
+  toast.success('JM 缓存目录已保存')
+  await refreshConfig()
+}
+
+async function saveJmCacheRetentionHours(event: Event) {
+  const hours = normalizePositiveInt((event.target as HTMLInputElement).value, 24)
+  const ok = await SetJmCacheRetentionHours(hours)
+  if (!ok) return
+
+  toast.success('JM 缓存保留时长已保存')
+  await refreshConfig()
+}
+
+async function saveJmCacheSizeLimitMB(event: Event) {
+  const limit = normalizePositiveInt((event.target as HTMLInputElement).value, 2048)
+  const ok = await SetJmCacheSizeLimitMB(limit)
+  if (!ok) return
+
+  toast.success('JM 缓存大小上限已保存')
+  await refreshConfig()
+}
+
 onMounted(async () => {
   await refreshConfig()
 })
+
+function normalizePositiveInt(raw: string, fallback: number) {
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
 
 function copyText(text?: string) {
   if (!text) return

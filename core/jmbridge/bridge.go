@@ -164,6 +164,35 @@ func Images(ctx context.Context, target, proxy string) (ImageResult, error) {
 	return payload, nil
 }
 
+func ReadableImages(ctx context.Context, target, proxy, cacheDir string, retentionHours, sizeLimitMB int) (ImageResult, error) {
+	args := []string{
+		"--target", strings.TrimSpace(target),
+	}
+	if proxy = strings.TrimSpace(proxy); proxy != "" {
+		args = append(args, "--proxy", proxy)
+	}
+	if cacheDir = strings.TrimSpace(cacheDir); cacheDir != "" {
+		args = append(args, "--cache-dir", cacheDir)
+	}
+	if retentionHours > 0 {
+		args = append(args, "--cache-retention-hours", fmt.Sprintf("%d", retentionHours))
+	}
+	if sizeLimitMB > 0 {
+		args = append(args, "--cache-limit-mb", fmt.Sprintf("%d", sizeLimitMB))
+	}
+
+	result, err := runBridge(ctx, "read-images", args, nil)
+	if err != nil {
+		return ImageResult{}, err
+	}
+
+	var payload ImageResult
+	if err := json.Unmarshal(result.payload, &payload); err != nil {
+		return ImageResult{}, fmt.Errorf("failed to decode JM readable image result: %w", err)
+	}
+	return payload, nil
+}
+
 func runBridge(ctx context.Context, action string, extraArgs []string, updater types.TaskUpdater) (bridgeRunResult, error) {
 	if ctx == nil {
 		ctx = context.Background()

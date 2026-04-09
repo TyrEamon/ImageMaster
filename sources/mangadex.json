@@ -1,0 +1,15 @@
+{
+  "id": "mangadex",
+  "adapter": "mangadex",
+  "enabled": true,
+  "name": "MangaDex",
+  "type": "manga",
+  "language": "all",
+  "website": "https://mangadex.org",
+  "version": "0.1.0",
+  "builtIn": true,
+  "capabilities": [
+    "search"
+  ],
+  "description": "本地外置描述文件，当前映射到内置的 MangaDex 适配器。"
+}

@@ -7,6 +7,12 @@ export function GetActiveLibrary():Promise<string>;
 
 export function GetBandizipPath():Promise<string>;
 
+export function GetJmCacheDir():Promise<string>;
+
+export function GetJmCacheRetentionHours():Promise<number>;
+
+export function GetJmCacheSizeLimitMB():Promise<number>;
+
 export function GetLibraries():Promise<Array<string>>;
 
 export function GetOutputDir():Promise<string>;
@@ -16,6 +22,12 @@ export function GetProxy():Promise<string>;
 export function SetActiveLibrary(arg1:string):Promise<boolean>;
 
 export function SetBandizipPath(arg1:string):Promise<boolean>;
+
+export function SetJmCacheDir(arg1:string):Promise<boolean>;
+
+export function SetJmCacheRetentionHours(arg1:number):Promise<boolean>;
+
+export function SetJmCacheSizeLimitMB(arg1:number):Promise<boolean>;
 
 export function SetOutputDir():Promise<boolean>;
 

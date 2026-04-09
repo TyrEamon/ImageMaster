@@ -74,6 +74,12 @@ type ConfigManager interface {
 	SetProxy(proxyURL string) bool
 	GetBandizipPath() string
 	SetBandizipPath(path string) bool
+	GetJmCacheDir() string
+	SetJmCacheDir(path string) bool
+	GetJmCacheRetentionHours() int
+	SetJmCacheRetentionHours(hours int) bool
+	GetJmCacheSizeLimitMB() int
+	SetJmCacheSizeLimitMB(limit int) bool
 	GetLibraries() []string
 	AddLibrary() bool
 	GetActiveLibrary() string
