@@ -263,10 +263,10 @@ func (s *ScriptSource) requestText(rawURL string, headers map[string]string) (st
 	return s.requestTextWithBody(http.MethodGet, rawURL, nil, headers)
 }
 
-func (s *ScriptSource) requestTextWithBody(method string, rawURL string, body any, headers map[string]string) (string, error) {
+func (s *ScriptSource) requestTextWithBody(method string, rawURL string, requestBody any, headers map[string]string) (string, error) {
 	var bodyReader io.Reader
-	if body != nil {
-		payload, err := json.Marshal(body)
+	if requestBody != nil {
+		payload, err := json.Marshal(requestBody)
 		if err != nil {
 			return "", fmt.Errorf("encode request body for %s: %w", rawURL, err)
 		}
@@ -281,7 +281,7 @@ func (s *ScriptSource) requestTextWithBody(method string, rawURL string, body an
 	req.Header.Set("User-Agent", "ImageMaster/0.2")
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-	if body != nil {
+	if requestBody != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	for key, value := range headers {
@@ -304,12 +304,12 @@ func (s *ScriptSource) requestTextWithBody(method string, rawURL string, body an
 		return "", fmt.Errorf("request failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
-	return string(body), nil
+	return string(responseBody), nil
 }
 
 func resolveScriptPath(manifest SourceManifest) (string, error) {
