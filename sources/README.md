@@ -1,22 +1,24 @@
 # Source Manifests
 
-这里先放 `ImageMaster` 的本地外置源描述文件。
+`sources/` is the local external-source directory for ImageMaster.
 
-当前这一层只负责：
+Current layers:
+- root `*.json`: manifests that ImageMaster can already wire into current built-in adapters/runtime
+- `miru/`: imported Miru manga catalog manifests for future adaptation
 
-- 声明源的名称、语言、能力、站点地址
-- 选择映射到哪个内置 adapter
-- 预留后续远程仓库同步的目录结构
+What these manifests do now:
+- describe source name, language, capabilities, website, and origin metadata
+- optionally map a manifest to an existing ImageMaster adapter
+- prepare the directory layout for a future remote source repository
 
-当前还不负责：
+What they do not do yet:
+- execute Miru scripts directly
+- provide full Miru compatibility
+- auto-install or auto-update themselves from a remote repo
 
-- 直接执行站点抓取逻辑
-- 直接兼容 Miru 的扩展脚本
-- 远程自动安装与更新
-
-后续如果你要单独开一个源仓库，基本可以沿用这一层的结构：
-
-- `index.json`
-- `*.json`
-
-再往后如果要进化成更强的源系统，再继续扩成独立脚本或 runtime。
+Recommended workflow:
+1. Keep working adapters in the root `sources/` directory.
+2. Keep imported catalogs in `sources/miru/`.
+3. When a Miru source is adapted for ImageMaster, either:
+   - promote it into the root source index, or
+   - wire the manifest to a new adapter/runtime and explicitly enable it.
