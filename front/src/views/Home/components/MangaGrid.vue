@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen overflow-auto">
+  <div ref="gridRoot" class="min-h-screen overflow-auto">
     <div
       class="sticky top-0 z-10 border-b border-neutral-800/70 bg-neutral-950/85 px-8 py-5 backdrop-blur"
     >
@@ -148,6 +148,18 @@
     <div v-else class="px-8 py-16 text-center text-sm text-neutral-400">
       {{ emptyMessage }}
     </div>
+
+    <Transition name="scroll-top">
+      <button
+        v-if="showBackToTop"
+        class="fixed bottom-6 right-6 z-30 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/90 text-neutral-100 shadow-2xl shadow-black/40 backdrop-blur transition-colors hover:border-sky-500/70 hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+        title="回到顶部"
+        aria-label="回到顶部"
+        @click="scrollToTop"
+      >
+        <ArrowUp :size="20" />
+      </button>
+    </Transition>
   </div>
 </template>
 
@@ -155,7 +167,7 @@
 import { Input } from '@/components'
 import { useLibraryMetaStore, type MangaReadingProgress } from '@/stores/libraryMetaStore'
 import { buildMangaSearchIndex, splitSearchKeywords } from '@/utils/search'
-import { SlidersHorizontal } from 'lucide-vue-next'
+import { ArrowUp, SlidersHorizontal } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { MangaCard } from '.'
@@ -181,7 +193,10 @@ const searchQuery = ref('')
 const sortMode = ref<SortMode>('smart')
 const statusFilter = ref<StatusFilter>('all')
 const showColumnPanel = ref(false)
+const showBackToTop = ref(false)
+const gridRoot = ref<HTMLElement | null>(null)
 const viewportWidth = ref(window.innerWidth)
+let scrollElement: HTMLElement | null = null
 const COLUMN_COUNT_KEY = 'imagemaster:manga-grid-columns'
 const storedColumnCount = Number(window.localStorage.getItem(COLUMN_COUNT_KEY))
 const columnCount = ref(Number.isFinite(storedColumnCount) ? Math.min(Math.max(storedColumnCount, 3), 8) : 5)
@@ -214,12 +229,27 @@ function updateViewportWidth() {
   viewportWidth.value = window.innerWidth
 }
 
+function updateBackToTopVisibility() {
+  showBackToTop.value = (scrollElement?.scrollTop ?? 0) > 480
+}
+
+function scrollToTop() {
+  scrollElement?.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  })
+}
+
 onMounted(() => {
   updateViewportWidth()
+  scrollElement = gridRoot.value?.closest('main') as HTMLElement | null
+  scrollElement?.addEventListener('scroll', updateBackToTopVisibility, { passive: true })
+  updateBackToTopVisibility()
   window.addEventListener('resize', updateViewportWidth)
 })
 
 onUnmounted(() => {
+  scrollElement?.removeEventListener('scroll', updateBackToTopVisibility)
   window.removeEventListener('resize', updateViewportWidth)
 })
 
@@ -341,4 +371,17 @@ function getQuickFilterClass(filter: Exclude<StatusFilter, 'all' | 'completed' |
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.scroll-top-enter-active,
+.scroll-top-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.scroll-top-enter-from,
+.scroll-top-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+}
+</style>

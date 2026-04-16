@@ -12,7 +12,13 @@
         @keydown.space.prevent="toMangaDetail"
       >
         <div class="h-48 overflow-hidden bg-neutral-950">
-          <img :src="mangaImageSrc" :alt="manga.name" class="h-full w-full object-cover" />
+          <img
+            :src="mangaImageSrc"
+            :alt="manga.name"
+            class="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
         </div>
 
         <div class="flex flex-col gap-2 bg-neutral-900 p-3 xl:min-h-[6.5rem] min-h-[6.25rem]">
