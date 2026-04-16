@@ -62,6 +62,69 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <div ref="readerSettingsRef" class="relative">
+          <button
+            class="rounded-xl border px-3 py-1.5 text-xs transition-colors"
+            :class="
+              showReaderSettings
+                ? 'border-sky-400 bg-sky-500/10 text-sky-200'
+                : 'border-neutral-700 text-neutral-300 hover:bg-neutral-800'
+            "
+            title="阅读显示设置"
+            aria-label="阅读显示设置"
+            :aria-expanded="showReaderSettings"
+            @click="showReaderSettings = !showReaderSettings"
+          >
+            <span class="flex items-center gap-2">
+              <SlidersHorizontal :size="14" />
+              <span>{{ readerModeLabel }}</span>
+            </span>
+          </button>
+
+          <div
+            v-if="showReaderSettings"
+            class="absolute right-0 top-10 z-30 w-72 rounded-2xl border border-neutral-800 bg-neutral-950/95 p-4 text-xs text-neutral-400 shadow-2xl shadow-black/40 backdrop-blur"
+            @keydown.escape="showReaderSettings = false"
+          >
+            <div class="mb-4 flex items-center justify-between">
+              <span class="text-neutral-300">阅读显示</span>
+              <span class="text-neutral-100">{{ readerModeLabel }}</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="option in readerFitOptions"
+                :key="option.value"
+                class="cursor-pointer rounded-xl border px-3 py-2 transition-colors"
+                :class="
+                  readerFitModeModel === option.value
+                    ? 'border-sky-500 bg-sky-500/10 text-sky-200'
+                    : 'border-neutral-800 bg-neutral-900/80 text-neutral-300 hover:border-neutral-600 hover:text-neutral-100'
+                "
+                @click="readerFitModeModel = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+
+            <label v-if="readerFitModeModel === 'custom'" class="mt-5 block">
+              <div class="mb-3 flex items-center justify-between">
+                <span>图片宽度</span>
+                <span class="text-neutral-100">{{ readerWidthPercentModel }}%</span>
+              </div>
+              <input
+                v-model.number="readerWidthPercentModel"
+                class="w-full accent-sky-500"
+                type="range"
+                min="40"
+                max="120"
+                step="5"
+                aria-label="阅读图片宽度比例"
+              />
+            </label>
+          </div>
+        </div>
+
         <button
           class="rounded-xl border px-3 py-1.5 text-xs transition-colors"
           :class="
@@ -127,7 +190,7 @@
 import { Button, QuickDownloadModal } from '@/components'
 import { useLibraryMetaStore } from '@/stores/libraryMetaStore'
 import { storeToRefs } from 'pinia'
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeClosed, Trash } from 'lucide-vue-next'
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeClosed, SlidersHorizontal, Trash } from 'lucide-vue-next'
 import { computed, onMounted, onUnmounted, ref, type PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { MangaService } from '../services'
@@ -137,16 +200,50 @@ const router = useRouter()
 const mangaStore = useMangaStore()
 const libraryMetaStore = useLibraryMetaStore()
 const { mangaName, mangaPath, selectedImages } = storeToRefs(mangaStore)
+type ReaderFitMode = 'width' | 'height' | 'custom'
+type ReaderFitOption = { label: string; value: ReaderFitMode }
 
-defineProps({
+const props = defineProps({
   mangaService: {
     type: Object as PropType<MangaService>,
     required: true,
   },
+  readerFitMode: {
+    type: String as PropType<ReaderFitMode>,
+    required: true,
+  },
+  readerWidthPercent: {
+    type: Number,
+    required: true,
+  },
+  readerFitOptions: {
+    type: Array as PropType<ReaderFitOption[]>,
+    required: true,
+  },
+  readerModeLabel: {
+    type: String,
+    required: true,
+  },
 })
 
+const emit = defineEmits<{
+  (event: 'update:readerFitMode', value: ReaderFitMode): void
+  (event: 'update:readerWidthPercent', value: number): void
+}>()
+
+const mangaService = props.mangaService
 const showNavigation = ref(false)
 const showQuickDownloadModal = ref(false)
+const showReaderSettings = ref(false)
+const readerSettingsRef = ref<HTMLElement | null>(null)
+const readerFitModeModel = computed({
+  get: () => props.readerFitMode,
+  set: (value: ReaderFitMode) => emit('update:readerFitMode', value),
+})
+const readerWidthPercentModel = computed({
+  get: () => props.readerWidthPercent,
+  set: (value: number) => emit('update:readerWidthPercent', value),
+})
 
 const shelfState = computed(() => libraryMetaStore.getShelfState(mangaPath.value))
 const readingProgress = computed(() => libraryMetaStore.getReadingProgress(mangaPath.value))
@@ -190,12 +287,27 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
+function handleDocumentPointerDown(event: PointerEvent) {
+  if (!showReaderSettings.value) {
+    return
+  }
+
+  const target = event.target
+  if (target instanceof Node && readerSettingsRef.value?.contains(target)) {
+    return
+  }
+
+  showReaderSettings.value = false
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  document.addEventListener('pointerdown', handleDocumentPointerDown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('pointerdown', handleDocumentPointerDown)
 })
 </script>
 
