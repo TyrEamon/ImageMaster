@@ -5,6 +5,7 @@ export interface Manga {
   path: string;
   previewImg: string;
   imagesCount: number;
+  addedAt?: number;
 }
 
 export interface Library {

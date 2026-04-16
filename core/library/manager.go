@@ -19,6 +19,7 @@ type Manga struct {
 	Path        string   `json:"path"`
 	PreviewImg  string   `json:"previewImg"`
 	ImagesCount int      `json:"imagesCount"`
+	AddedAt     int64    `json:"addedAt"`
 	Images      []string `json:"images,omitempty"`
 }
 
@@ -277,8 +278,23 @@ func (m *Manager) appendManga(path string, images []string, mangas *[]Manga) {
 		Path:        path,
 		PreviewImg:  images[0],
 		ImagesCount: len(images),
+		AddedAt:     m.getAddedAt(path),
 		Images:      nil,
 	})
+}
+
+func (m *Manager) getAddedAt(path string) int64 {
+	addedAt, err := getPathCreatedAt(path)
+	if err == nil && addedAt > 0 {
+		return addedAt
+	}
+
+	info, statErr := os.Stat(path)
+	if statErr != nil {
+		return 0
+	}
+
+	return info.ModTime().UnixMilli()
 }
 
 func (m *Manager) GetImagesInImmediateChildDirs(dirPath string) ([]string, error) {

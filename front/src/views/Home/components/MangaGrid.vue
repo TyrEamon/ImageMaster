@@ -22,6 +22,7 @@
                 class="rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none transition-colors focus:border-sky-500"
               >
                 <option value="smart">默认排序</option>
+                <option value="added-desc">添加时间</option>
                 <option value="recent-read">最近阅读</option>
                 <option value="images-desc">图片数最多</option>
                 <option value="name-asc">名称 A-Z</option>
@@ -114,7 +115,7 @@ import { computed, ref } from 'vue'
 import { MangaCard } from '.'
 import { useHomeStore } from '../stores/homeStore'
 
-type SortMode = 'smart' | 'recent-read' | 'images-desc' | 'name-asc' | 'name-desc'
+type SortMode = 'smart' | 'added-desc' | 'recent-read' | 'images-desc' | 'name-asc' | 'name-desc'
 type StatusFilter =
   | 'all'
   | 'pinned'
@@ -189,6 +190,8 @@ const visibleMangas = computed(() => {
 
   const sorted = [...filtered].sort((left, right) => {
     switch (sortMode.value) {
+      case 'added-desc':
+        return (right.manga.addedAt ?? 0) - (left.manga.addedAt ?? 0) || compareName(left.manga.name, right.manga.name)
       case 'recent-read':
         return (
           (right.progress?.timestamp ?? 0) - (left.progress?.timestamp ?? 0) ||
