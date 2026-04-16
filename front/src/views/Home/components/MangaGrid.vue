@@ -14,45 +14,60 @@
             />
           </div>
 
-          <div class="flex flex-wrap items-end gap-3">
-            <label class="flex min-w-[10rem] flex-col gap-1 text-xs text-neutral-400">
-              <span>排序</span>
-              <select
-                v-model="sortMode"
-                class="rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none transition-colors focus:border-sky-500"
-              >
-                <option value="smart">默认排序</option>
-                <option value="added-desc">添加时间</option>
-                <option value="recent-read">最近阅读</option>
-                <option value="images-desc">图片数最多</option>
-                <option value="name-asc">名称 A-Z</option>
-                <option value="name-desc">名称 Z-A</option>
-              </select>
-            </label>
+          <div class="flex w-full flex-wrap items-end justify-between gap-3 xl:w-auto xl:min-w-[42rem]">
+            <div class="flex flex-wrap items-end gap-3">
+              <label class="flex min-w-[10rem] flex-col gap-1 text-xs text-neutral-400">
+                <span>排序</span>
+                <select
+                  v-model="sortMode"
+                  class="rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none transition-colors focus:border-sky-500"
+                >
+                  <option value="smart">默认排序</option>
+                  <option value="added-desc">添加时间</option>
+                  <option value="recent-read">最近阅读</option>
+                  <option value="images-desc">图片数最多</option>
+                  <option value="name-asc">名称 A-Z</option>
+                  <option value="name-desc">名称 Z-A</option>
+                </select>
+              </label>
 
-            <label class="flex min-w-[10rem] flex-col gap-1 text-xs text-neutral-400">
-              <span>筛选</span>
-              <select
-                v-model="statusFilter"
-                class="rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none transition-colors focus:border-sky-500"
-              >
-                <option value="all">全部</option>
-                <option value="pinned">只看置顶</option>
-                <option value="favorite">只看收藏</option>
-                <option value="read-later">只看稍后看</option>
-                <option value="in-progress">继续阅读</option>
-                <option value="completed">已读完</option>
-                <option value="unread">未开始</option>
-              </select>
-            </label>
+              <label class="flex min-w-[10rem] flex-col gap-1 text-xs text-neutral-400">
+                <span>筛选</span>
+                <select
+                  v-model="statusFilter"
+                  class="rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none transition-colors focus:border-sky-500"
+                >
+                  <option value="all">全部</option>
+                  <option value="pinned">只看置顶</option>
+                  <option value="favorite">只看收藏</option>
+                  <option value="read-later">只看稍后看</option>
+                  <option value="in-progress">继续阅读</option>
+                  <option value="completed">已读完</option>
+                  <option value="unread">未开始</option>
+                </select>
+              </label>
 
-            <button
-              v-if="showResetButton"
-              class="cursor-pointer rounded-xl border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition-colors duration-200 hover:bg-neutral-800"
-              @click="resetControls"
-            >
-              重置
-            </button>
+              <button
+                v-if="showResetButton"
+                class="cursor-pointer rounded-xl border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition-colors duration-200 hover:bg-neutral-800"
+                @click="resetControls"
+              >
+                重置
+              </button>
+            </div>
+
+            <label class="ml-auto flex min-w-[12rem] flex-col gap-1 text-xs text-neutral-400">
+              <span>列数 {{ columnCount }}</span>
+              <input
+                v-model.number="columnCount"
+                class="h-9 accent-sky-500"
+                type="range"
+                min="3"
+                max="8"
+                step="1"
+                aria-label="漫画卡片列数"
+              />
+            </label>
           </div>
         </div>
 
@@ -96,7 +111,11 @@
       </div>
     </div>
 
-    <div v-if="visibleMangas.length > 0" class="flex flex-wrap gap-4 p-8 pt-6">
+    <div
+      v-if="visibleMangas.length > 0"
+      class="grid gap-4 p-8 pt-6"
+      :style="gridStyle"
+    >
       <MangaCard v-for="manga in visibleMangas" :key="manga.path" :manga="manga" />
     </div>
 
@@ -111,7 +130,7 @@ import { Input } from '@/components'
 import { useLibraryMetaStore, type MangaReadingProgress } from '@/stores/libraryMetaStore'
 import { buildMangaSearchIndex, splitSearchKeywords } from '@/utils/search'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { MangaCard } from '.'
 import { useHomeStore } from '../stores/homeStore'
 
@@ -134,8 +153,18 @@ libraryMetaStore.cleanupOldReadingProgress()
 const searchQuery = ref('')
 const sortMode = ref<SortMode>('smart')
 const statusFilter = ref<StatusFilter>('all')
+const COLUMN_COUNT_KEY = 'imagemaster:manga-grid-columns'
+const storedColumnCount = Number(window.localStorage.getItem(COLUMN_COUNT_KEY))
+const columnCount = ref(Number.isFinite(storedColumnCount) ? Math.min(Math.max(storedColumnCount, 3), 8) : 5)
 
 const keywords = computed(() => splitSearchKeywords(searchQuery.value))
+const gridStyle = computed(() => ({
+  gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, calc((100% - ${(columnCount.value - 1) * 1}rem) / ${columnCount.value})), 1fr))`,
+}))
+
+watch(columnCount, (value) => {
+  window.localStorage.setItem(COLUMN_COUNT_KEY, String(value))
+})
 
 function isInProgress(progress: MangaReadingProgress | null | undefined) {
   return Boolean(progress && progress.progressPercent > 0 && !progress.completed)

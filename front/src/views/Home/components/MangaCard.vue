@@ -1,5 +1,5 @@
 <template>
-  <article class="xl:w-64 w-36 transition-transform duration-300 hover:-translate-y-1">
+  <article class="w-full transition-transform duration-300 hover:-translate-y-1">
     <div
       class="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 text-left transition-colors duration-300 hover:border-neutral-700"
     >
