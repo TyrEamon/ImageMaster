@@ -56,18 +56,44 @@
               </button>
             </div>
 
-            <label class="ml-auto flex min-w-[12rem] flex-col gap-1 text-xs text-neutral-400">
-              <span>列数 {{ columnCount }}</span>
-              <input
-                v-model.number="columnCount"
-                class="h-9 accent-sky-500"
-                type="range"
-                min="3"
-                max="8"
-                step="1"
-                aria-label="漫画卡片列数"
-              />
-            </label>
+            <div class="relative ml-auto">
+              <button
+                class="flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
+                title="调整列数"
+                @click="showColumnPanel = !showColumnPanel"
+              >
+                <SlidersHorizontal :size="16" />
+                <span>{{ columnCount }} 列</span>
+              </button>
+
+              <div
+                v-if="showColumnPanel"
+                class="absolute right-0 top-12 z-20 w-64 rounded-2xl border border-neutral-800 bg-neutral-950/95 p-4 text-xs text-neutral-400 shadow-2xl shadow-black/40 backdrop-blur"
+              >
+                <div class="mb-4 flex items-center justify-between">
+                  <span class="text-neutral-300">列数</span>
+                  <span class="text-neutral-100">{{ columnCount }}</span>
+                </div>
+
+                <input
+                  v-model.number="columnCount"
+                  class="w-full accent-sky-500"
+                  type="range"
+                  min="2"
+                  :max="maxColumnCount"
+                  step="1"
+                  aria-label="漫画卡片列数"
+                />
+
+                <div class="mt-3 flex justify-between text-[11px] text-neutral-500">
+                  <span v-for="count in columnTicks" :key="count">{{ count }}</span>
+                </div>
+
+                <p class="mt-3 text-[11px] leading-5 text-neutral-500">
+                  普通窗口最多 {{ maxColumnCount }} 列，窗口足够宽时才开放 6-8 列。
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -129,8 +155,9 @@
 import { Input } from '@/components'
 import { useLibraryMetaStore, type MangaReadingProgress } from '@/stores/libraryMetaStore'
 import { buildMangaSearchIndex, splitSearchKeywords } from '@/utils/search'
+import { SlidersHorizontal } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { MangaCard } from '.'
 import { useHomeStore } from '../stores/homeStore'
 
@@ -153,17 +180,47 @@ libraryMetaStore.cleanupOldReadingProgress()
 const searchQuery = ref('')
 const sortMode = ref<SortMode>('smart')
 const statusFilter = ref<StatusFilter>('all')
+const showColumnPanel = ref(false)
+const viewportWidth = ref(window.innerWidth)
 const COLUMN_COUNT_KEY = 'imagemaster:manga-grid-columns'
 const storedColumnCount = Number(window.localStorage.getItem(COLUMN_COUNT_KEY))
 const columnCount = ref(Number.isFinite(storedColumnCount) ? Math.min(Math.max(storedColumnCount, 3), 8) : 5)
 
 const keywords = computed(() => splitSearchKeywords(searchQuery.value))
+const maxColumnCount = computed(() => {
+  if (viewportWidth.value >= 1700) return 8
+  if (viewportWidth.value >= 1500) return 7
+  if (viewportWidth.value >= 1280) return 6
+  return 5
+})
+const columnTicks = computed(() => {
+  return Array.from({ length: maxColumnCount.value - 1 }, (_, index) => index + 2)
+})
 const gridStyle = computed(() => ({
   gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, calc((100% - ${(columnCount.value - 1) * 1}rem) / ${columnCount.value})), 1fr))`,
 }))
 
 watch(columnCount, (value) => {
   window.localStorage.setItem(COLUMN_COUNT_KEY, String(value))
+})
+
+watch(maxColumnCount, (value) => {
+  if (columnCount.value > value) {
+    columnCount.value = value
+  }
+})
+
+function updateViewportWidth() {
+  viewportWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  updateViewportWidth()
+  window.addEventListener('resize', updateViewportWidth)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateViewportWidth)
 })
 
 function isInProgress(progress: MangaReadingProgress | null | undefined) {
