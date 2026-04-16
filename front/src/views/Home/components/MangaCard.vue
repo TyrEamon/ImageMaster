@@ -20,7 +20,7 @@
             {{ manga.name }}
           </h3>
 
-          <div v-if="statusBadges.length > 0" class="flex flex-wrap gap-1">
+          <div class="flex h-7 flex-wrap content-start gap-1 overflow-hidden">
             <span
               v-for="badge in statusBadges"
               :key="badge"
