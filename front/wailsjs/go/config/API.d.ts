@@ -7,6 +7,8 @@ export function GetActiveLibrary():Promise<string>;
 
 export function GetBandizipPath():Promise<string>;
 
+export function GetEHentaiCookie():Promise<string>;
+
 export function GetJmCacheDir():Promise<string>;
 
 export function GetJmCacheRetentionHours():Promise<number>;
@@ -24,6 +26,8 @@ export function GetSourceRepoURL():Promise<string>;
 export function SetActiveLibrary(arg1:string):Promise<boolean>;
 
 export function SetBandizipPath(arg1:string):Promise<boolean>;
+
+export function SetEHentaiCookie(arg1:string):Promise<boolean>;
 
 export function SetJmCacheDir(arg1:string):Promise<boolean>;
 

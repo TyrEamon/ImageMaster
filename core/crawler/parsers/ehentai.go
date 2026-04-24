@@ -24,9 +24,10 @@ type EHentaiAlbum struct {
 
 // EHentaiParser EHentai解析器实现
 type EHentaiParser struct {
-	downloader types.Downloader
-	reqClient  *request.Client
-	ctx        context.Context
+	downloader    types.Downloader
+	reqClient     *request.Client
+	configManager types.ConfigProvider
+	ctx           context.Context
 
 	// 进度跟踪相关属性
 	totalImages        int
@@ -78,7 +79,7 @@ func (p *EHentaiParser) Parse(reqClient *request.Client, url string) (*ParseResu
 	p.completedLinks = 0
 
 	// 设置ehentai特殊配置
-	err := SetupEHentaiClient(p.reqClient, p.downloader)
+	err := SetupEHentaiClient(p.reqClient, p.downloader, p.configManager)
 	if err != nil {
 		return nil, fmt.Errorf("设置EHentai客户端失败: %w", err)
 	}
@@ -464,32 +465,109 @@ func ParseLinks(body string) []string {
 // EHentaiCrawler E-Hentai爬虫
 type EHentaiCrawler struct {
 	*BaseCrawler
+	configManager types.ConfigProvider
 }
 
 // NewEHentaiCrawler 创建新的E-Hentai爬虫
-func NewEHentaiCrawler(reqClient *request.Client) types.ImageCrawler {
-	parser := &EHentaiParser{}
+func NewEHentaiCrawler(reqClient *request.Client, cfg types.ConfigProvider) types.ImageCrawler {
+	parser := &EHentaiParser{configManager: cfg}
 	baseCrawler := NewBaseCrawler(reqClient, parser)
 	return &EHentaiCrawler{
-		BaseCrawler: baseCrawler,
+		BaseCrawler:   baseCrawler,
+		configManager: cfg,
 	}
+}
+
+func (c *EHentaiCrawler) SetDownloader(dl types.Downloader) {
+	if dl == nil {
+		c.BaseCrawler.SetDownloader(nil)
+		return
+	}
+	c.BaseCrawler.SetDownloader(NewEHentaiDownloader(dl, c.configManager))
 }
 
 // 插件注册
 func init() {
 	Register(SiteTypeEHentai, func(reqClient *request.Client, cfg types.ConfigProvider) types.ImageCrawler {
-		return NewEHentaiCrawler(reqClient)
+		return NewEHentaiCrawler(reqClient, cfg)
 	})
 	Register(SiteTypeExHentai, func(reqClient *request.Client, cfg types.ConfigProvider) types.ImageCrawler {
-		return NewEHentaiCrawler(reqClient)
+		return NewEHentaiCrawler(reqClient, cfg)
 	})
 	// host 规则
 	RegisterHostContains(SiteTypeEHentai, "e-hentai.org")
 	RegisterHostContains(SiteTypeExHentai, "exhentai.org")
 }
 
+type ehentaiCookiePair struct {
+	name  string
+	value string
+}
+
+// EHentaiDownloader 包装下载器以添加 Cookie 头
+type EHentaiDownloader struct {
+	types.Downloader
+	configManager types.ConfigProvider
+}
+
+func NewEHentaiDownloader(downloader types.Downloader, cfg types.ConfigProvider) *EHentaiDownloader {
+	return &EHentaiDownloader{
+		Downloader:    downloader,
+		configManager: cfg,
+	}
+}
+
+func (d *EHentaiDownloader) BatchDownload(imageURLs, filePaths []string, headers map[string]string) (int, error) {
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	headers["Cookie"] = buildEHentaiCookieHeader(d.configManager)
+	return d.Downloader.BatchDownload(imageURLs, filePaths, headers)
+}
+
+func buildEHentaiCookiePairs(cfg types.ConfigProvider) []ehentaiCookiePair {
+	pairs := []ehentaiCookiePair{{name: "nw", value: "1"}}
+	indexByName := map[string]int{"nw": 0}
+
+	rawCookie := ""
+	if cfg != nil {
+		rawCookie = cfg.GetEHentaiCookie()
+	}
+
+	for _, part := range strings.Split(rawCookie, ";") {
+		pieces := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(pieces) != 2 {
+			continue
+		}
+		name := strings.TrimSpace(pieces[0])
+		value := strings.TrimSpace(pieces[1])
+		if name == "" || value == "" {
+			continue
+		}
+
+		if existingIndex, ok := indexByName[name]; ok {
+			pairs[existingIndex].value = value
+			continue
+		}
+
+		indexByName[name] = len(pairs)
+		pairs = append(pairs, ehentaiCookiePair{name: name, value: value})
+	}
+
+	return pairs
+}
+
+func buildEHentaiCookieHeader(cfg types.ConfigProvider) string {
+	pairs := buildEHentaiCookiePairs(cfg)
+	parts := make([]string, 0, len(pairs))
+	for _, pair := range pairs {
+		parts = append(parts, pair.name+"="+pair.value)
+	}
+	return strings.Join(parts, "; ")
+}
+
 // SetupEHentaiClient 设置EHentai特殊的客户端配置
-func SetupEHentaiClient(reqClient *request.Client, downloader types.Downloader) error {
+func SetupEHentaiClient(reqClient *request.Client, downloader types.Downloader, cfg types.ConfigProvider) error {
 	// 先执行通用设置
 	if err := SetupRequestClient(reqClient, downloader); err != nil {
 		return err
@@ -498,10 +576,12 @@ func SetupEHentaiClient(reqClient *request.Client, downloader types.Downloader) 
 	reqClient.SetSemaphore(utils.NewSemaphore(5))
 
 	// 设置ehentai需要的cookie
-	reqClient.AddCookie(&http.Cookie{
-		Name:  "nw",
-		Value: "1",
-	})
+	for _, pair := range buildEHentaiCookiePairs(cfg) {
+		reqClient.AddCookie(&http.Cookie{
+			Name:  pair.name,
+			Value: pair.value,
+		})
+	}
 
 	return nil
 }

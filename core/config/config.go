@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"ImageMaster/core/logger"
 	"ImageMaster/core/types"
@@ -19,6 +20,7 @@ var defaultConfig = Config{
 	Libraries:             []string{},
 	OutputDir:             "",
 	ProxyURL:              "",
+	EHentaiCookie:         "",
 	BandizipPath:          "",
 	SourceRepoURL:         "",
 	JmCacheDir:            "",
@@ -31,6 +33,7 @@ type Config struct {
 	Libraries             []string `json:"libraries"`
 	OutputDir             string   `json:"output_dir"`
 	ProxyURL              string   `json:"proxy_url"`
+	EHentaiCookie         string   `json:"ehentai_cookie"`
 	BandizipPath          string   `json:"bandizip_path"`
 	SourceRepoURL         string   `json:"source_repo_url"`
 	JmCacheDir            string   `json:"jm_cache_dir"`
@@ -179,6 +182,16 @@ func (m *Manager) SetProxy(proxyURL string) bool {
 
 func (m *Manager) GetProxy() string {
 	return m.config.ProxyURL
+}
+
+func (m *Manager) SetEHentaiCookie(cookie string) bool {
+	m.config.EHentaiCookie = strings.TrimSpace(cookie)
+	logger.Debug("Set EHentai cookie: %t", m.config.EHentaiCookie != "")
+	return m.SaveConfig()
+}
+
+func (m *Manager) GetEHentaiCookie() string {
+	return strings.TrimSpace(m.config.EHentaiCookie)
 }
 
 func (m *Manager) SetBandizipPath(path string) bool {

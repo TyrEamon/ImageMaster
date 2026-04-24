@@ -64,6 +64,9 @@ type ConfigProvider interface {
 
 	// GetProxy 获取代理设置
 	GetProxy() string
+
+	// GetEHentaiCookie 获取 E-Hentai / ExHentai Cookie
+	GetEHentaiCookie() string
 }
 
 // ConfigManager 配置管理接口
@@ -72,6 +75,8 @@ type ConfigManager interface {
 	SetOutputDir() bool
 	GetProxy() string
 	SetProxy(proxyURL string) bool
+	GetEHentaiCookie() string
+	SetEHentaiCookie(cookie string) bool
 	GetBandizipPath() string
 	SetBandizipPath(path string) bool
 	GetSourceRepoURL() string

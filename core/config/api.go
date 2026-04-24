@@ -40,6 +40,14 @@ func (a *API) SetProxy(proxy string) bool {
 	return a.manager.SetProxy(proxy)
 }
 
+func (a *API) GetEHentaiCookie() string {
+	return a.manager.GetEHentaiCookie()
+}
+
+func (a *API) SetEHentaiCookie(cookie string) bool {
+	return a.manager.SetEHentaiCookie(cookie)
+}
+
 func (a *API) GetBandizipPath() string {
 	return a.manager.GetBandizipPath()
 }

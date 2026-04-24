@@ -14,6 +14,10 @@ export function GetBandizipPath() {
   return window['go']['config']['API']['GetBandizipPath']();
 }
 
+export function GetEHentaiCookie() {
+  return window['go']['config']['API']['GetEHentaiCookie']();
+}
+
 export function GetJmCacheDir() {
   return window['go']['config']['API']['GetJmCacheDir']();
 }
@@ -48,6 +52,10 @@ export function SetActiveLibrary(arg1) {
 
 export function SetBandizipPath(arg1) {
   return window['go']['config']['API']['SetBandizipPath'](arg1);
+}
+
+export function SetEHentaiCookie(arg1) {
+  return window['go']['config']['API']['SetEHentaiCookie'](arg1);
 }
 
 export function SetJmCacheDir(arg1) {

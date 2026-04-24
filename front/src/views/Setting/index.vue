@@ -45,6 +45,22 @@
     </section>
 
     <section class="flex flex-col gap-4">
+      <div class="text-xl">E-Hentai / ExHentai Cookie</div>
+      <div class="flex gap-4">
+        <Input
+          v-model="ehentaiCookie"
+          type="password"
+          class="flex-1"
+          placeholder="ipb_member_id=...; ipb_pass_hash=...; igneous=..."
+          @blur="saveEHentaiCookie"
+        />
+      </div>
+      <div class="text-xs leading-6 text-neutral-400">
+        用于访问需要登录态的 ExHentai；留空时只会发送默认的 nw=1。
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-4">
       <div class="text-xl">解压设置</div>
       <div class="flex gap-4">
         <Input
@@ -287,6 +303,7 @@ import {
   AddLibrary,
   GetActiveLibrary,
   GetBandizipPath,
+  GetEHentaiCookie,
   GetJmCacheDir,
   GetJmCacheRetentionHours,
   GetJmCacheSizeLimitMB,
@@ -296,6 +313,7 @@ import {
   GetSourceRepoURL,
   SetActiveLibrary,
   SetBandizipPath,
+  SetEHentaiCookie,
   SetJmCacheDir,
   SetJmCacheRetentionHours,
   SetJmCacheSizeLimitMB,
@@ -418,6 +436,7 @@ const linkTips: LinkTip[] = [
 ]
 
 const proxyUrl = ref('')
+const ehentaiCookie = ref('')
 const bandizipPath = ref('')
 const sourceRepoUrl = ref('')
 const jmCacheDir = ref('')
@@ -433,6 +452,7 @@ const sourceStorageInfo = ref<SourceStorageInfo | null>(null)
 
 async function refreshConfig() {
   proxyUrl.value = await GetProxy()
+  ehentaiCookie.value = await GetEHentaiCookie()
   bandizipPath.value = await GetBandizipPath()
   sourceRepoUrl.value = await GetSourceRepoURL()
   jmCacheDir.value = await GetJmCacheDir()
@@ -501,6 +521,14 @@ async function saveProxy(event: Event) {
   if (!ok) return
 
   toast.success('代理已保存')
+  await refreshConfig()
+}
+
+async function saveEHentaiCookie(event: Event) {
+  const ok = await SetEHentaiCookie((event.target as HTMLInputElement).value.trim())
+  if (!ok) return
+
+  toast.success('E-Hentai Cookie 已保存')
   await refreshConfig()
 }
 
