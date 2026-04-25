@@ -1,5 +1,7 @@
 # ImageMaster
 
+## 安卓端软件：https://github.com/TyrEamon/comicr
+
 一个基于 `Wails + Go + Vue 3` 的本地漫画/图片下载与管理工具，支持多站点链接抓取、本地漫画库、批量解压与简繁统一搜索。
 
 ## 功能特点
