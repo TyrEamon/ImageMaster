@@ -2,6 +2,12 @@ package library
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"ImageMaster/core/types"
 )
@@ -74,4 +80,47 @@ func (a *API) DeleteManga(path string) bool {
 // GetImageDataUrl 获取图片的DataURL
 func (a *API) GetImageDataUrl(path string) string {
 	return a.libraryManager.GetImageDataUrl(path)
+}
+
+func (a *API) OpenMangaLocation(path string) error {
+	targetPath := strings.TrimSpace(path)
+	if targetPath == "" {
+		return fmt.Errorf("manga path is empty")
+	}
+
+	targetPath = filepath.Clean(targetPath)
+	info, err := os.Stat(targetPath)
+	if err != nil {
+		return fmt.Errorf("manga path is not available: %w", err)
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		if info.IsDir() {
+			cmd = exec.Command("explorer.exe", targetPath)
+		} else {
+			cmd = exec.Command("explorer.exe", "/select,", targetPath)
+		}
+	case "darwin":
+		if info.IsDir() {
+			cmd = exec.Command("open", targetPath)
+		} else {
+			cmd = exec.Command("open", "-R", targetPath)
+		}
+	default:
+		openPath := targetPath
+		if !info.IsDir() {
+			openPath = filepath.Dir(targetPath)
+		}
+		cmd = exec.Command("xdg-open", openPath)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("open manga location: %w", err)
+	}
+	go func() {
+		_ = cmd.Wait()
+	}()
+	return nil
 }

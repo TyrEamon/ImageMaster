@@ -23,6 +23,19 @@
           </div>
         </Button>
 
+        <Button
+          class="disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="!mangaPath"
+          title="打开当前漫画文件夹"
+          aria-label="打开当前漫画文件夹"
+          @click="openCurrentMangaLocation"
+        >
+          <div class="flex items-center gap-2">
+            <FolderOpen :size="16" class="text-white" />
+            <span>打开文件位置</span>
+          </div>
+        </Button>
+
         <Button @click="showQuickDownloadModal = true">
           <div class="flex items-center gap-2">
             <Download :size="16" class="text-white" />
@@ -44,7 +57,10 @@
         <span class="rounded-full border border-neutral-800 px-3 py-1.5">
           {{ progressSummary }}
         </span>
-        <span v-if="shelfState.pinned" class="rounded-full border border-sky-500/40 px-3 py-1.5 text-sky-200">
+        <span
+          v-if="shelfState.pinned"
+          class="rounded-full border border-sky-500/40 px-3 py-1.5 text-sky-200"
+        >
           置顶
         </span>
         <span
@@ -190,9 +206,21 @@
 import { Button, QuickDownloadModal } from '@/components'
 import { useLibraryMetaStore } from '@/stores/libraryMetaStore'
 import { storeToRefs } from 'pinia'
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeClosed, SlidersHorizontal, Trash } from 'lucide-vue-next'
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  EyeClosed,
+  FolderOpen,
+  SlidersHorizontal,
+  Trash,
+} from 'lucide-vue-next'
 import { computed, onMounted, onUnmounted, ref, type PropType } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
+import { OpenMangaLocation } from '../../../../wailsjs/go/library/API'
 import { MangaService } from '../services'
 import { useMangaStore } from '../stores'
 
@@ -262,6 +290,19 @@ const progressSummary = computed(() => {
 
   return `已读 ${Math.round(progress.progressPercent * 100)}% · 第 ${progress.lastReadImage}/${progress.totalImages} 张`
 })
+
+async function openCurrentMangaLocation() {
+  if (!mangaPath.value) {
+    toast.error('当前漫画路径为空，暂时不能打开文件位置。')
+    return
+  }
+
+  try {
+    await OpenMangaLocation(mangaPath.value)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : '打开文件位置失败。')
+  }
+}
 
 function toggleFavorite() {
   if (mangaPath.value) {

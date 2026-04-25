@@ -34,6 +34,10 @@ export function LoadLibrary(arg1) {
   return window['go']['library']['API']['LoadLibrary'](arg1);
 }
 
+export function OpenMangaLocation(arg1) {
+  return window['go']['library']['API']['OpenMangaLocation'](arg1);
+}
+
 export function SetContext(arg1) {
   return window['go']['library']['API']['SetContext'](arg1);
 }

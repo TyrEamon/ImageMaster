@@ -19,4 +19,6 @@ export function LoadAllLibraries():Promise<void>;
 
 export function LoadLibrary(arg1:string):Promise<void>;
 
+export function OpenMangaLocation(arg1:string):Promise<void>;
+
 export function SetContext(arg1:context.Context):Promise<void>;

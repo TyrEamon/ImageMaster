@@ -30,9 +30,13 @@ export class MangaService {
 
     const imageCache = this.homeStore.mangaImages
     for (const manga of mangasData) {
-      if (!imageCache.has(manga.previewImg)) {
+      if (!imageCache.get(manga.previewImg)) {
         const imageUrl = await GetImageDataUrl(manga.previewImg)
-        imageCache.set(manga.previewImg, imageUrl)
+        if (imageUrl) {
+          imageCache.set(manga.previewImg, imageUrl)
+        } else {
+          imageCache.delete(manga.previewImg)
+        }
       }
     }
 
